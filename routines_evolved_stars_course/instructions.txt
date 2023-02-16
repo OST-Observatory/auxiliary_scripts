@@ -1,0 +1,83 @@
+# these are basic instruction to reduce DADOS data using
+# two python scripts:
+~/scripts/evolved/1_findcaliblines.py
+~/scripts/evolved/2_extractspectrum.py
+
+# the data taken during the seminar can be found in these folders,
+# ordered by the observation date
+
+~/data/20190902/
+~/data/20190903/
+~/data/20190905/
+~/data/20190906/
+
+# dark frames can be found here:
+~/data/20190903/dark/
+
+# in case calibration (arc) or flat field files are missing,
+# use the closest ones
+
+#####
+# stack all hgar images and all flat images for object
+#####
+
+# the stacked images should have to same exposure time
+# go into midas
+inmidas -p 19
+# set the dados context
+SET/CONT dados
+# replace star_1200s with the correct name!
+STACK/DADO star_1200s*.FIT
+# this will create a file with the .mt ending 
+# you can rename this file to .fit if you like, but it is not necessary
+# or
+STACK/DADO star_1200s_0.FIT star_1200s_1.FIT
+# this will create the stacked file called star_1200s_0_stacked.fit
+# in this exampl
+
+######
+# then run the calibration using the stacked files
+######
+
+# first find the region you want to extract
+# you can use ds9 or specify your science spectrum
+~/scripts/evolved/1_findcaliblines.py  -arc star_hgar_stacked.fit -sc star_1200s_stacked.fit
+
+# if you know the region, abort and start again with -rsc
+~/scripts/evolved/1_findcaliblines.py  -arc star_hgar_stacked.fit -rsc 500 570
+
+######
+# then apply the calibration
+######
+
+# you need to put the flat fields in their own folder
+mkdir flats
+# and then copy your flat fields into that folder
+cp *flat_1s* flats
+
+# then you can extract the final spectra
+# make sure that the dark frames are the correct length
+# e.g. if the flats were taken with 1s, the -fd directory has
+# to contain dark frames with 1s exposure time
+~/scripts/evolved/2_extractspectrum.py -sc star_1200s_stacked.fit -df ~/data/20190903/dark/1200s/ -ff flats/ -fd ~/data/20190903/dark/1s/ -rsc 500 570
+
+# the script will create a pdf plot of the final spectrum (star_spectrum.pdf)
+# it will also create ascii files that contain the spectrum at different stages during the reduction
+# _sky means that the sky (or background) spectrum was substracted
+# _f means that the flat field correction was applied
+# you can plot these ascii files using gnuplot:
+gnuplot
+# then type
+p 'spectrum_science_sky_f.dat' w l
+
+# in case you want to have line identifications in the pdf plot (star_spectrum.pdf),
+# you can set the -pi option to "yes":
+~/scripts/evolved/2_extractspectrum.py -sc star_1200s_stacked.fit -df ~/data/20190903/dark/1200s/ -ff flats/ -fd ~/data/20190903/dark/1s/ -rsc 500 570 -pi yes
+
+# the script will then label the position of lines listed in lines.txt
+# you need to create this file yourself, for example just copy the absorbtionlines file
+# to lines.txt; it needs to be in the current directory
+# a line in lines.txt might look like this:
+
+4200 4686 5412 HeII
+
