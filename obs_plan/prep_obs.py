@@ -136,7 +136,7 @@ sunrise_tonight = ost.sun_rise_time(time, which='nearest')
 
 #   Set approximate new end time, in case start > end 
 #   -> This only occurs, if obs_time is set to a time during the day aka 
-#      bevor Sunset
+#      before Sunset
 if sunset_tonight > sunrise_tonight:
     sunrise_tonight = sunrise_tonight + 1*u.d
     
