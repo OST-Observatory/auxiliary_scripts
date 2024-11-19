@@ -1,9 +1,9 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Bin all images from a specific directory
-'''
+"""
 
 ############################################################################
 ####           Configuration: modify the file in this section           ####
@@ -32,7 +32,7 @@ import ccdproc as ccdp
 
 from astropy.nddata import block_reduce
 
-from ost import checks
+from ost_photometry import checks
 
 ############################################################################
 ####                               Main                                 ####
@@ -40,8 +40,8 @@ from ost import checks
 
 if __name__ == '__main__':
     #   Check input and output directory
-    file_path = checks.check_pathlib_Path(path)
-    checks.check_out(outdir)
+    file_path = checks.check_pathlib_path(path)
+    checks.check_output_directories(outdir)
     out_path = Path(outdir)
 
     #   Get image file collection
