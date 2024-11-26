@@ -1,21 +1,21 @@
 #! /home/pollux/.virtualenvs/photo/bin/python
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Add header keywords to image
-'''
+"""
 
 from astropy.nddata import CCDData
 
 #------------------------------------------------------------------------------
 
-path = '?'
+path: str = '?'
 
 #------------------------------------------------------------------------------
 
 def get_basename(path):
-    '''
-        Determine basename without ending from a file path. Accounts for
+    """
+        Determine base name without ending from a file path. Accounts for
         multiple dots in the file name.
 
         Parameters
@@ -25,18 +25,18 @@ def get_basename(path):
 
         Returns
         -------
-        basename        : `string`
+        base_name        : `string`
             Basename without ending
-    '''
+    """
     name_parts = str(path).split('/')[-1].split('.')[0:-1]
     if len(name_parts) == 1:
-        basename = name_parts[0]
+        base_name = name_parts[0]
     else:
-        basename = name_parts[0]
+        base_name = name_parts[0]
         for part in name_parts[1:]:
-            basename = basename+'.'+part
+            base_name = base_name+'.'+part
 
-    return basename
+    return base_name
 
 #------------------------------------------------------------------------------
 #   Read image

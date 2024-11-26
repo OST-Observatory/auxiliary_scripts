@@ -1,10 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Load images of specific formats and calculate shifts to a reference
     image
-'''
+"""
 
 
 ############################################################################
@@ -12,18 +12,18 @@
 ############################################################################
 
 #   Path to the images
-path_in  = '?/'
+path_images: str = '?/'
 
 #   Output directory
-path_out = '?'
+path_output: str = '?'
 
 #   Allowed input file formats
-#formats = [".tiff", ".TIFF"]
-#formats = [".CR2"]
-formats = ["?"]
+#formats: list[str] = [".tiff", ".TIFF"]
+#formats: list[str] = [".CR2"]
+formats: list[str] = ["?"]
 
 #   Reference image
-ref_id = 0
+id_reference_image: int = 0
 
 
 ###
@@ -31,49 +31,50 @@ ref_id = 0
 #                 cross correlation such as the moon during a
 #                 solar eclipse
 #   Mask image?
-bool_mask = True
+bool_mask: bool = True
 
 #   Points to define the mask -> the area enclosed by the points
 #                                will be masked
-mask_points = [[3000, 0],[3000, 5183]]
+mask_points: list[list[int]] = [[3000, 0],[3000, 5183]]
 
 #   Add a point for the upper right corner
-upper_right = False
+upper_right: bool = False
 #   Add a point for the lower right corner
-lower_right = True
+lower_right: bool = True
 #   Add a point for the lower left corner
-lower_left  = True
+lower_left: bool = True
 
 
 ###
 #   Apply a heaviside function to the image
-bool_heavy = False
-bool_heavy = True
+bool_heavyside: bool = False
+bool_heavyside: bool = True
 
 
 ###
 #   Additional cuts to the images
 #
 #   Upper edge
-ys_cut = 0
+ys_cut: int = 0
 #   Lower edge
-ye_cut = 0
+ye_cut: int = 0
 #   Left edge
-xs_cut = 0
+xs_cut: int = 0
 #   Right edge
-xe_cut = 0
+xe_cut: int = 0
 
 
 ###
 #   Plot options
 #
 #   Plot the image mask and reference image
-plot_mask = True
+plot_mask: bool = True
 
 #   Plot cut images
-plot_cut  = True
+plot_cut: bool  = True
+
 #   ID of the image to plot
-id_img    = 10
+id_img: int = 10
 
 
 ############################################################################
@@ -91,8 +92,9 @@ from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
 from skimage.io import (imread, imread_collection, imsave, imshow)
 
-from ost import checks, aux_base
-from ost.reduce import aux
+from ost_photometry import checks
+import ost_photometry.utilities as utilities_base
+from ost_photometry.reduce import utilities
 
 #from PIL import Image
 #from rawkit.raw import Raw
@@ -103,11 +105,15 @@ import rawpy
 ############################################################################
 
 #   Check if output directory exists
-checks.check_out(path_out)
+checks.check_output_directories(path_output)
 
 #   Make file list
 sys.stdout.write("\rRead images...\n")
-fileList, nfiles = aux_base.mkfilelist(path_in, formats=formats, addpath=True)
+fileList, nfiles = utilities_base.mk_file_list(
+    path_images,
+    formats=formats,
+    addpath=True,
+)
 
 #print(fileList)
 
@@ -188,15 +194,15 @@ for i in range(0, nfiles):
     sys.stdout.flush()
 
     #   "Normalize" image & calculate heaviside function for the image
-    if bool_heavy:
+    if bool_heavyside:
         #reff = np.heaviside(im[ref_id][:,:,0]/255, 0.03)
         #test = np.heaviside(im[i][:,:,0]/255, 0.03)
         #reff = np.heaviside(im[ref_id][:,:,0]/2**(bit_depth), 0.03)
         #test = np.heaviside(im[i][:,:,0]/2**(bit_depth), 0.03)
-        reff = np.heaviside(im[ref_id][:,:,0]/2**(bit_depth), 0.01)
+        reff = np.heaviside(im[id_reference_image][:, :, 0] / 2 ** (bit_depth), 0.01)
         test = np.heaviside(im[i][:,:,0]/2**(bit_depth), 0.01)
     else:
-        reff = im[ref_id][:,:,0]
+        reff = im[id_reference_image][:, :, 0]
         test = im[i][:,:,0]
 
     #   Calculate shifts
@@ -235,21 +241,21 @@ for i in range(0,nfiles):
     sys.stdout.write("\rApply shift to image %i/%i" % (id_c, nfiles))
     sys.stdout.flush()
 
-    xs, xe, ys, ye =  aux.make_index_from_shifts(
+    xs, xe, ys, ye =  utilities.make_index_from_shifts(
         shifts,
         i,
-        )
+    )
 
     #   Actual image cutting
     img_cut[i] = im[i][ys-ys_cut:ye-ye_cut, xs-xs_cut:xe-xe_cut]
 
     #   Plot reference and offset image
-    if i == id_img and plot_cut and ref_id <= id_img:
+    if i == id_img and plot_cut and id_reference_image <= id_img:
         fig = plt.figure(figsize=(12, 7))
         ax1 = plt.subplot(1, 2, 1)
         ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
 
-        ax1.imshow(img_cut[ref_id])
+        ax1.imshow(img_cut[id_reference_image])
         ax1.set_axis_off()
         ax1.set_title('Reference image')
 
@@ -261,7 +267,7 @@ for i in range(0,nfiles):
 
     #   Write image
     new_name = 'shift_'+os.path.basename(fileList[i])
-    imsave(os.path.join(path_out,new_name), img_cut[i])
+    imsave(os.path.join(path_output, new_name), img_cut[i])
 
     #new_name = 'shift_'+basename(fileList[i]).split('.')[0]
     #imsave(join('output/jpeg',new_name)+'.jpg', img_cut[i])

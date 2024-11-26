@@ -1,19 +1,19 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Trim all images from a specific directory
-'''
+"""
 
 ############################################################################
 ####           Configuration: modify the file in this section           ####
 ############################################################################
 
 #   Path to the images
-path = '?'
+image_path: str = '?'
 
 #   Output directory
-outdir = '?'
+output_directory: str = '?'
 
 ############################################################################
 ####                            Libraries                               ####
@@ -23,11 +23,9 @@ import sys
 
 from pathlib import Path
 
-import numpy as np
-
 import ccdproc as ccdp
 
-from ost import checks
+from ost_photometry import checks
 
 ############################################################################
 ####                               Main                                 ####
@@ -35,9 +33,9 @@ from ost import checks
 
 if __name__ == '__main__':
     #   Check input and output directory
-    file_path = checks.check_pathlib_Path(path)
-    checks.check_out(outdir)
-    out_path = Path(outdir)
+    file_path = checks.check_pathlib_path(image_path)
+    checks.check_output_directories(output_directory)
+    out_path = Path(output_directory)
 
     #   Get image file collection
     ifc = ccdp.ImageFileCollection(file_path)

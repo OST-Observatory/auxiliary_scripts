@@ -10,13 +10,13 @@
 ############################################################################
 
 #   Path to the images
-path = '?'
+image_path: str = '?'
 
 #   Output directory
-outdir = '?'
+output_directory: str = '?'
 
 #   Binning factor
-binning = 2
+binning: int = 2
 
 ############################################################################
 ####                            Libraries                               ####
@@ -25,8 +25,6 @@ binning = 2
 import sys
 
 from pathlib import Path
-
-import numpy as np
 
 import ccdproc as ccdp
 
@@ -40,9 +38,9 @@ from ost_photometry import checks
 
 if __name__ == '__main__':
     #   Check input and output directory
-    file_path = checks.check_pathlib_path(path)
-    checks.check_output_directories(outdir)
-    out_path = Path(outdir)
+    file_path = checks.check_pathlib_path(image_path)
+    checks.check_output_directories(output_directory)
+    out_path = Path(output_directory)
 
     #   Get image file collection
     ifc = ccdp.ImageFileCollection(file_path)

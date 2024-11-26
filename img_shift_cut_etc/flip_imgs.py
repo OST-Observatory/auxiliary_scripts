@@ -1,22 +1,22 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Flip all images from a specific directory
-'''
+"""
 
 ############################################################################
 ####           Configuration: modify the file in this section           ####
 ############################################################################
 
 #   Path to the images
-path = '?'
+image_path: str = '?'
 
 #   Output directory
-outdir = '?'
+output_directory: str = '?'
 
 #   Allowed input file formats
-formats = [".tiff", ".TIFF"]
+formats: list[str] = [".tiff", ".TIFF"]
 
 ############################################################################
 ####                            Libraries                               ####
@@ -30,18 +30,22 @@ import numpy as np
 
 from tifffile import (imread, imsave)
 
-from ost import checks, aux
+from ost_photometry import checks, utilities
 
 ############################################################################
 ####                               Main                                 ####
 ############################################################################
 
 #   Check if output directory exists
-checks.check_out(outdir)
+checks.check_output_directories(output_directory)
 
 #   Make file list
 sys.stdout.write("\rRead images...\n")
-fileList, nfiles = aux.mkfilelist(path, formats=formats, addpath=True)
+fileList, n_files = utilities.mk_file_list(
+    image_path,
+    formats=formats,
+    add_path_to_file_names=True,
+)
 
 #   Read images
 im = imread(fileList, key=0)
@@ -51,7 +55,7 @@ im = np.flip(im, axis=1)
 im = np.flip(im, axis=2)
 
 #   Write images to the output directory
-for i in range(0,nfiles):
+for i in range(0, n_files):
     #   Extract file name
     new_name = os.path.basename(fileList[i])
 

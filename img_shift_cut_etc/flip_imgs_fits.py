@@ -1,19 +1,19 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-'''
+"""
     Flip all images from a specific directory
-'''
+"""
 
 ############################################################################
 ####           Configuration: modify the file in this section           ####
 ############################################################################
 
 #   Path to the images
-file_path = '?'
+file_path: str = '?'
 
 #   Output directory
-out_path = '?'
+out_path: str = '?'
 
 ############################################################################
 ####                            Libraries                               ####
@@ -23,7 +23,7 @@ import ccdproc as ccdp
 
 from pathlib import Path
 
-from ost.reduce import aux
+from ost_photometry.reduce import utilities
 
 ############################################################################
 ####                               Main                                 ####
@@ -33,4 +33,4 @@ from ost.reduce import aux
 ifc = ccdp.ImageFileCollection(file_path)
 
 #   Flip images
-aux.flip_img(ifc, Path(out_path))
+utilities.flip_image(ifc, Path(out_path))
