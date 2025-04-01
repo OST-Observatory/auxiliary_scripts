@@ -202,10 +202,6 @@ plot_ifi = True
 #   Make only the star map plot for the reference image [refid]
 plot_test = True
 
-#   Plot sigma clipped magnitudes
-#plot_sigma = True
-plot_sigma = False
-
 
 ###
 #   Remove cosmics
