@@ -57,13 +57,9 @@ camera = 'QHY600M'
 ####             Additional options: only edit if necessary             ####
 ############################################################################
 
-#   Dictionary with file type infos
-img_type = {
-    'bias':'Bias Frame',
-    'dark':'Dark Frame',
-    'flat':'Flat Field',
-    'light':'Light Frame',
-    }
+#   Dictionary with file type infos (use None for default, or dict from calibration_parameters.get_image_types())
+#   For reduce_main: dict with keys bias/dark/flat/light, values are lists of FITS imagetyp strings
+img_type = None  # Uses default from calibration_parameters
 
 #  Path to store the output (will usually be 'output',
 #  but it can be changed as needed).
@@ -124,9 +120,7 @@ import tempfile
 import warnings
 warnings.filterwarnings('ignore')
 
-from ost_photometry.reduce import redu
-from ost_photometry.reduce import aux
-
+from ost_photometry.reduce import redu, utilities
 
 ############################################################################
 ####                               Main                                 ####
@@ -140,17 +134,16 @@ if __name__ == '__main__':
     temp_dir = tempfile.TemporaryDirectory()
 
     #   Prepare directories
-    rawfiles = aux.prepare_reduction(
+    rawfiles = utilities.prepare_reduction(
         outdir,
         bias,
         darks,
         flats,
         imgs,
         rawfiles,
-        img_type,
         temp_dir,
-        )
-
+        image_type=img_type,
+    )
 
     ###
     #   Reduce images
@@ -158,15 +151,14 @@ if __name__ == '__main__':
     redu.reduce_main(
         rawfiles,
         outdir,
-        img_type,
+        image_type_dir=img_type,
         gain=gain,
-        readnoise=readnoise,
-        dr=dark_rate,
-        cosmics=rmcos,
-        satlevel=satlevel,
-        objlim=objlim,
-        sigclip=sigclip,
-        verbose=verbose,
-        #addmask=False,
-        stack=stack,
-        )
+        read_noise=readnoise,
+        dark_rate=dark_rate,
+        rm_cosmic_rays=rmcos,
+        saturation_level=satlevel,
+        limiting_contrast_rm_cosmic_rays=objlim,
+        sigma_clipping_value_rm_cosmic_rays=sigclip,
+        debug=verbose,
+        stack_images=stack,
+    )

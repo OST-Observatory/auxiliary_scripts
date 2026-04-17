@@ -60,13 +60,9 @@ from astropy.table import Table
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 
-from ost_photometry.analyze.aux import (lin_func,
-                             fit_curve,
-                             )
-
+from ost_photometry.analyze.utilities import lin_func, fit_curve
 from ost_photometry import checks
-
-from ost_photometry.style import bcolors
+from ost_photometry.style import Bcolors as bcolors
 
 ############################################################################
 ####                               Main                                 ####
@@ -76,9 +72,7 @@ if __name__ == '__main__':
     ###
     #   Check output directories
     #
-    checks.check_out(
-        outdir,
-        )
+    checks.check_output_directories(outdir)
 
     for j, filt in enumerate(filter_list):
         for key, C_list in C_name.items():

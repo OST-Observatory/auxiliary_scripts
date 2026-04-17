@@ -68,7 +68,7 @@ calib_methode = 'vsp'        # Load calibration data for variable stars
                              # directly from the AAVSO website
 #calib_methode = 'UCAC4'      # UCAC4 Catalogue (Zacharias+, 2012)
 #calib_methode = 'GSC2.3'     # The Full GSC2.3.2 Catalogue
-#calib_methode = 'URAT1       # URAT1 Catalog (Zacharias+ 2015)
+#calib_methode = 'URAT1'      # URAT1 Catalog (Zacharias+ 2015)
 #calib_methode = 'NOMAD'      # NOMAD Catalog (Zacharias+ 2005)
 calib_methode = 'APASS'      # AAVSO Photo. All Sky Surv. DR9(Henden+,2016)
 
@@ -79,7 +79,7 @@ vizier_dict = {
     'URAT1':'I/329',
     'NOMAD':'I/297',
     'APASS':'II/336/apass9',
-    }
+}
 
 #   File with calibration stars (has to be in VO format)
 file_calib = None
@@ -163,10 +163,13 @@ r_unit = 'arcsec'
 ###
 #   newsrcor options
 #
+#   ID of the reference image
+ref_ID = 0
+
 #   Critical radius outside which correlations are rejected
 dcr     = 3
 #dcr     = 5
-dcr     = 7
+#dcr     = 7
 
 #   Refinement option (3: take all stars within the distance of 'dcr' to
 #   another as a match, 0: take only the one with the minimal distance, 1:
@@ -186,8 +189,6 @@ bfrac   = 0.9
 ###
 #   WCS options
 #
-#   Create a WCS solution for all images
-#mk_all_wcs  = False
 #   Methode to determine WCS
 wcs_method = 'astrometry'                  #   -> astrometry.net
 #wcs_method = 'twirl'                       #   -> twirl libary
@@ -204,13 +205,14 @@ plot_test = True
 
 
 ###
-#   Remove cosmics
+#   Cosmic ray removal
+#   Note: For cosmic ray removal, images should be pre-reduced with
+#   1_reduce_images.py before running this script.
 #
-#   Bool
 rmcos = True
 rmcos = False
 
-#   Parameters:
+#   Parameters (used when running with pre-reduced images):
 objlim  = 5.
 sigclip = 4.0
 
@@ -219,7 +221,22 @@ camera = 'QHY600M'
 
 
 ###
-#   Camera specific parameters
+#   Multiprocessing
+#
+ncores = 6
+
+
+###
+#   Expert interface
+#   -> add here, if images from more than 2 filters should be reduced
+#
+filter_list = [filter_1, filter_2]
+img_dirs    = {filter_1:img_1, filter_2:img_2}
+sigma_psf   = {filter_1:sigma, filter_2:sigma}
+
+###
+#   Camera specific parameters (for reference; cosmic ray removal
+#   is typically done in 1_reduce_images.py)
 #
 if camera == 'STF8300':
     readnoise = 9.3
@@ -236,52 +253,27 @@ else:
         "Error: camera type not known\n"
         "\t-> check variable: camera\n"
         "\t-> Exit\n"
-        )
+    )
 
-
-###
-#   Expert interface
-#   -> add here, if images from more than 2 filters should be reduced
-#
-filter_list = [filter_1, filter_2]
-img_dirs    = {filter_1:img_1, filter_2:img_2}
-sigma_psf   = {filter_1:sigma, filter_2:sigma}
 
 ############################################################################
 ####                            Libraries                               ####
 ############################################################################
 
-import sys
-
 from os.path import join
-
-from shutil import copy
-
-import numpy as np
 
 import time
 
 import warnings
 warnings.filterwarnings('ignore')
 
-from photutils.background import MADStdBackgroundRMS
-
-from astropy.stats import SigmaClip
-import astropy.units as u
 from astropy.table import Table
-
-import multiprocessing as mp
-
 from ost_photometry import checks
 from ost_photometry import style
-from ost_photometry.analyze import (
-    analyze,
-    plot,
-    calib,
-    trans,
-    aux,
-    correlate,
-    )
+from ost_photometry.analyze import Observation
+from ost_photometry.analyze.models import ImageSeries
+from ost_photometry.analyze import calibration, correlate, utilities
+from ost_photometry.analyze.extraction import extract_multiprocessing
 
 
 ############################################################################
@@ -293,47 +285,97 @@ if __name__ == '__main__':
     start_time = time.time()
 
     ###
-    #   Initialize image ensemble container
+    #   Initialize observation container
     #
-    img_container = analyze.image_container()
-
+    observation = Observation()
 
     ###
-    #   Extract flux
-    analyze.extract_flux(
-        img_container,
-        filter_list,
-        nameobj,
-        img_dirs,
+    #   Check output directories
+    #
+    checks.check_output_directories(
         outdir,
-        wcs_method,
-        sigma_bkg,
-        sigma_psf,
-        multi_start=multi_start,
-        size_epsf=size_epsf,
-        frac_epsf_stars=frac_epsf_stars,
-        oversampling=oversampling,
-        maxiters=maxiters,
-        methode=methode,
-        multi=multi,
-        multi_grouper=multi_grouper,
-        strict_cleaning=strict_cleaning,
-        min_eps_stars=min_eps_stars,
-        strict_eps=strict_eps,
-        photometry=photometry,
-        rstars=rstars,
-        rbg_in=rbg_in,
-        rbg_out=rbg_out,
-        r_unit=r_unit,
-        rmcos=rmcos,
-        objlim=objlim,
-        readnoise=readnoise,
-        sigclip=sigclip,
-        satlevel=satlevel,
-        plot_ifi=plot_ifi,
-        plot_test=plot_test,
+        join(outdir, 'tables'),
+    )
+
+    ###
+    #   Check image directories
+    #
+    checks.check_dir(img_dirs)
+
+    #   Outer loop over all filter
+    for filt in filter_list:
+        print(
+            style.Bcolors.HEADER
+            + "   Analyzing " + filt + " images"
+            + style.Bcolors.ENDC
         )
 
+        #   Initialize image series object
+        observation.image_series_dict[filt] = ImageSeries(
+            filt,
+            img_dirs[filt],
+            outdir,
+            ref_ID,
+        )
+
+        ###
+        #   Find the WCS solution for the image
+        #
+        utilities.find_wcs(
+            observation.image_series_dict[filt],
+            reference_image_index=ref_ID,
+            method=wcs_method,
+            indent=2,
+        )
+
+        ###
+        #   Main extraction of object positions and object fluxes
+        #   using multiprocessing
+        #
+        extract_multiprocessing(
+            observation.image_series_dict[filt],
+            ncores,
+            fwhm_object_psf=sigma_psf,
+            sigma_value_background_clipping=sigma_bkg,
+            multiplier_background_rms=multi_start,
+            size_epsf_region=size_epsf,
+            fraction_epsf_stars=frac_epsf_stars,
+            oversampling_factor_epsf=oversampling,
+            max_n_iterations_epsf_determination=maxiters,
+            object_finder_method=methode,
+            multiplier_background_rms_epsf=multi,
+            multiplier_grouper_epsf=multi_grouper,
+            strict_cleaning_epsf_results=strict_cleaning,
+            minimum_n_eps_stars=min_eps_stars,
+            strict_epsf_checks=strict_eps,
+            photometry_extraction_method=photometry,
+            radius_aperture=rstars,
+            inner_annulus_radius=rbg_in,
+            outer_annulus_radius=rbg_out,
+            radii_unit=r_unit,
+            plots_for_all_images=plot_ifi,
+        )
+
+        ###
+        #   Correlate results from all images, while preserving the
+        #   calibration stars
+        #
+        correlate.correlate_preserve_calibration_objects(
+            observation.image_series_dict[filt],
+            filter_list,
+            calibration_source=calib_methode,
+            calibration_catalog_mag_range=mag_range,
+            vizier_dict=vizier_dict,
+            calib_file=file_calib,
+            max_pixel_between_objects=dcr,
+            ooi_correlation_strategy=option,
+            cross_identification_limit=1,
+            reference_image_index=ref_ID,
+            n_allowed_non_detections_object=1,
+            expected_bad_image_fraction=bfrac,
+            protect_calibration_objects=False,
+            plot_only_reference_starmap=plot_test,
+        )
 
     ###
     #   Make new calibration table and add object name to
@@ -347,43 +389,45 @@ if __name__ == '__main__':
     for calib_fil in valid_calibs:
         #   Check if filter combination is valid
         if calib_fil[0] in filter_list and calib_fil[1] in filter_list:
-            for i in range(0,len(calib_fil)):
+            for i in range(0, len(calib_fil)):
                 key = calib_fil[i]
 
                 #   Set up filter list
                 filt_list    = [calib_fil[0], calib_fil[1]]
 
                 #   Add air mass and object to the calibration table
-                tbl_trans['airmass_'+key] = img_container.ensembles[key].get_air_mass()
-
+                tbl_trans['airmass_'+key] = [
+                    observation.image_series_dict[key].median_air_mass()
+                ]
 
                 ###
                 #   Correlate the results from the different filter and
                 #   determine transformation coefficients
                 #
-                trans.calculate_trans(
-                    img_container,
+                calibration.calculate_trans(
+                    observation,
                     key,
                     filt_list,
                     tbl_trans,
-                    weights=weights,
-                    dcr=dcr,
-                    option=option,
-                    calib_methode=calib_methode,
+                    apply_uncertainty_weights=weights,
+                    max_pixel_between_objects=dcr,
+                    ooi_correlation_strategy=option,
+                    calibration_source=calib_methode,
                     vizier_dict=vizier_dict,
-                    calib_file=file_calib,
-                    mag_range=mag_range,
-                    )
+                    calibration_file=file_calib,
+                    calibration_catalog_mag_range=mag_range,
+                )
 
-
-                tbl_trans['jd'] = img_container.ensembles[key].get_obs_time()
+                tbl_trans['jd'] = [
+                    observation.image_series_dict[key].median_observation_time()
+                ]
 
     #   Write table and check output directories
     tbl_trans.write(
-        outdir+'/tables/trans_para_'+nameobj.replace(' ','_')+'.dat',
+        outdir+'/tables/trans_para_'+nameobj.replace(' ', '_')+'.dat',
         format='ascii',
         overwrite=True,
-        )
+    )
 
-print(style.bcolors.OKGREEN+"   Done"+style.bcolors.ENDC)
-print("--- %s minutes ---" % ((time.time() - start_time)/60.))
+    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
+    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))

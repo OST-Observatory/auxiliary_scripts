@@ -112,7 +112,7 @@ sys.stdout.write("\rRead images...\n")
 fileList, nfiles = utilities_base.mk_file_list(
     path_images,
     formats=formats,
-    addpath=True,
+    add_path_to_file_names=True,
 )
 
 #print(fileList)
