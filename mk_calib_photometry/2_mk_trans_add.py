@@ -26,6 +26,7 @@ filter_2 = '?'
 ### Path to the images of filter 1
 img_2    = '?'
 
+
 ###
 #   Finder options
 #
@@ -43,6 +44,7 @@ sigma = 3.0
 #   but it can be changed as needed).
 #
 outdir='output/'
+
 
 ###
 #   Aperture or ePSF photometry
@@ -260,20 +262,19 @@ else:
 ####                            Libraries                               ####
 ############################################################################
 
-from os.path import join
-
 import time
 
 import warnings
 warnings.filterwarnings('ignore')
 
-from astropy.table import Table
-from ost_photometry import checks
 from ost_photometry import style
 from ost_photometry.analyze import Observation
-from ost_photometry.analyze.models import ImageSeries
-from ost_photometry.analyze import calibration, correlate, utilities
-from ost_photometry.analyze.extraction import extract_multiprocessing
+
+from mk_calib_pipeline import (
+    build_transformation_pipeline_config,
+    run_transformation_extraction_pipeline,
+    write_field_transformation_table,
+)
 
 
 ############################################################################
@@ -281,152 +282,66 @@ from ost_photometry.analyze.extraction import extract_multiprocessing
 ############################################################################
 
 if __name__ == '__main__':
-    #   Set start time
     start_time = time.time()
 
-    ###
-    #   Initialize observation container
-    #
-    observation = Observation()
+    observation = Observation(object_names=[nameobj])
 
-    ###
-    #   Check output directories
-    #
-    checks.check_output_directories(
-        outdir,
-        join(outdir, 'tables'),
+    pipeline_config = build_transformation_pipeline_config(
+        photometry=photometry,
+        wcs_method=wcs_method,
+        ref_id=ref_ID,
+        sigma_psf=sigma_psf,
+        ncores=ncores,
+        methode=methode,
+        sigma_bkg=sigma_bkg,
+        multi_start=multi_start,
+        multi=multi,
+        multi_grouper=multi_grouper,
+        strict_cleaning=strict_cleaning,
+        oversampling=oversampling,
+        maxiters=maxiters,
+        size_epsf=size_epsf,
+        frac_epsf_stars=frac_epsf_stars,
+        min_eps_stars=min_eps_stars,
+        strict_eps=strict_eps,
+        rstars=rstars,
+        rbg_in=rbg_in,
+        rbg_out=rbg_out,
+        r_unit=r_unit,
+        plot_ifi=plot_ifi,
+        dcr=dcr,
+        option=option,
+        maxid=1,
+        nmissed=1,
+        bfrac=bfrac,
+        protect_calibration_objects=False,
+        calib_methode=calib_methode,
+        vizier_dict=vizier_dict,
+        file_calib=file_calib,
+        mag_range=mag_range,
+        rmcos=rmcos,
+        readnoise=readnoise,
+        sigclip=sigclip,
+        satlevel=satlevel,
+        objlim=objlim,
     )
 
-    ###
-    #   Check image directories
-    #
-    checks.check_dir(img_dirs)
+    run_transformation_extraction_pipeline(
+        observation,
+        filter_list,
+        img_dirs,
+        outdir,
+        pipeline_config,
+    )
 
-    #   Outer loop over all filter
-    for filt in filter_list:
-        print(
-            style.Bcolors.HEADER
-            + "   Analyzing " + filt + " images"
-            + style.Bcolors.ENDC
-        )
-
-        #   Initialize image series object
-        observation.image_series_dict[filt] = ImageSeries(
-            filt,
-            img_dirs[filt],
-            outdir,
-            ref_ID,
-        )
-
-        ###
-        #   Find the WCS solution for the image
-        #
-        utilities.find_wcs(
-            observation.image_series_dict[filt],
-            reference_image_index=ref_ID,
-            method=wcs_method,
-            indent=2,
-        )
-
-        ###
-        #   Main extraction of object positions and object fluxes
-        #   using multiprocessing
-        #
-        extract_multiprocessing(
-            observation.image_series_dict[filt],
-            ncores,
-            fwhm_object_psf=sigma_psf,
-            sigma_value_background_clipping=sigma_bkg,
-            multiplier_background_rms=multi_start,
-            size_epsf_region=size_epsf,
-            fraction_epsf_stars=frac_epsf_stars,
-            oversampling_factor_epsf=oversampling,
-            max_n_iterations_epsf_determination=maxiters,
-            object_finder_method=methode,
-            multiplier_background_rms_epsf=multi,
-            multiplier_grouper_epsf=multi_grouper,
-            strict_cleaning_epsf_results=strict_cleaning,
-            minimum_n_eps_stars=min_eps_stars,
-            strict_epsf_checks=strict_eps,
-            photometry_extraction_method=photometry,
-            radius_aperture=rstars,
-            inner_annulus_radius=rbg_in,
-            outer_annulus_radius=rbg_out,
-            radii_unit=r_unit,
-            plots_for_all_images=plot_ifi,
-        )
-
-        ###
-        #   Correlate results from all images, while preserving the
-        #   calibration stars
-        #
-        correlate.correlate_preserve_calibration_objects(
-            observation.image_series_dict[filt],
-            filter_list,
-            calibration_source=calib_methode,
-            calibration_catalog_mag_range=mag_range,
-            vizier_dict=vizier_dict,
-            calib_file=file_calib,
-            max_pixel_between_objects=dcr,
-            ooi_correlation_strategy=option,
-            cross_identification_limit=1,
-            reference_image_index=ref_ID,
-            n_allowed_non_detections_object=1,
-            expected_bad_image_fraction=bfrac,
-            protect_calibration_objects=False,
-            plot_only_reference_starmap=plot_test,
-        )
-
-    ###
-    #   Make new calibration table and add object name to
-    #   the calibration table
-    #
-    tbl_trans            = Table()
-    tbl_trans['name']    = [nameobj]
-
-    #   Loop over allowed filter combinations to allow for the calculation
-    #   of the transformation coefficients
-    for calib_fil in valid_calibs:
-        #   Check if filter combination is valid
-        if calib_fil[0] in filter_list and calib_fil[1] in filter_list:
-            for i in range(0, len(calib_fil)):
-                key = calib_fil[i]
-
-                #   Set up filter list
-                filt_list    = [calib_fil[0], calib_fil[1]]
-
-                #   Add air mass and object to the calibration table
-                tbl_trans['airmass_'+key] = [
-                    observation.image_series_dict[key].median_air_mass()
-                ]
-
-                ###
-                #   Correlate the results from the different filter and
-                #   determine transformation coefficients
-                #
-                calibration.calculate_trans(
-                    observation,
-                    key,
-                    filt_list,
-                    tbl_trans,
-                    apply_uncertainty_weights=weights,
-                    max_pixel_between_objects=dcr,
-                    ooi_correlation_strategy=option,
-                    calibration_source=calib_methode,
-                    vizier_dict=vizier_dict,
-                    calibration_file=file_calib,
-                    calibration_catalog_mag_range=mag_range,
-                )
-
-                tbl_trans['jd'] = [
-                    observation.image_series_dict[key].median_observation_time()
-                ]
-
-    #   Write table and check output directories
-    tbl_trans.write(
-        outdir+'/tables/trans_para_'+nameobj.replace(' ', '_')+'.dat',
-        format='ascii',
-        overwrite=True,
+    write_field_transformation_table(
+        observation,
+        nameobj=nameobj,
+        filter_list=filter_list,
+        valid_calibs=valid_calibs,
+        outdir=outdir,
+        extraction_config=pipeline_config,
+        weights=weights,
     )
 
     print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)

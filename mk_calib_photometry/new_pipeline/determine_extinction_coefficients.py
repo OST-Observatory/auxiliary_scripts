@@ -12,6 +12,10 @@ EXPLANATION:
      extinction coefficients k per filter. Output: extinction_coefficients.json
      and context.extinction_coefficients for use in differential calibration.
 
+     After several nights, aggregate JSON files into the site table:
+       python scripts/aggregate_site_extinction.py --nights ... --out ...
+     See ost_photometry_package/docs/EXTINCTION_COEFFICIENTS.md
+
      Requires multiple images per filter at different airmasses.
      Best done on clear nights; moonlit nights are acceptable.
 """
@@ -111,8 +115,9 @@ if __name__ == "__main__":
     #   skip calibration (post-process steps skip when calibration skipped)
     #
     config = PipelineConfig(
-        skip_extinction_fit=False,
+        extinction_mode="from_value_airmass",
         skip_calibration=True,
+        protect_calibration_objects=True,
         photometry_extraction_method=photometry_extraction_method,
         extinction_fit_mag_col=extinction_fit_mag_col,
         extinction_coefficients_filename=extinction_coefficients_filename,
