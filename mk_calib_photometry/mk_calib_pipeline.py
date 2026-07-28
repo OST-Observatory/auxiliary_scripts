@@ -58,7 +58,7 @@ def build_transformation_pipeline_config(
 ) -> PipelineConfig:
     """Pipeline config for WCS, extraction, and intra correlation (mk_calib step 2)."""
     return PipelineConfig.from_preset(
-        "mk_calib_trans",
+        "extract_protect_calibrators",
         overrides={
             "wcs_method": wcs_method,
             "photometry_extraction_method": photometry,
@@ -131,7 +131,7 @@ def build_calibration_pipeline_config(
     )
     overrides = {k: flat[k] for k in cal_keys if k in flat}
     overrides["skip_calibration"] = False
-    return PipelineConfig.from_preset("mk_calib_calibrate", overrides=overrides)
+    return PipelineConfig.from_preset("linear_fit_ensemble", overrides=overrides)
 
 
 def run_transformation_extraction_pipeline(
