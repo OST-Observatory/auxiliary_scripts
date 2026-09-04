@@ -12,6 +12,13 @@ Methods (pipeline names):
 | `aa` | astroalign, translation only |
 | `aa_true` | astroalign similarity (shift + rotation + scale) |
 | `flow` | skimage optical flow TV-L1 (dense field) |
+| `wcs` | reproject the second frame onto the **reference WCS** (needs a celestial WCS on both; solved with ASTAP in the pipeline if missing) |
+
+`wcs` measures sky alignment, not a blind pixel shift. Frames must carry a real
+solution (or `--self-test` attaches a TAN WCS consistent with the synthetic
+shift). If the headers share one stale WCS while the pixels have moved, `wcs`
+will look aligned on the sky and the residual will stay large — that is the
+point of comparing it to `aa_true`.
 
 ## Usage
 

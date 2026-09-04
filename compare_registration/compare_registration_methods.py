@@ -4,7 +4,8 @@
 
 Point this at two FITS files, two directories of reduced lights, or two raw
 datasets (optional calibration via ``reduce_main``). Each implemented shift
-method is run and the displacements plus residual images are plotted.
+method is run (including ``wcs`` reproject onto the reference solution) and
+the displacements plus residual images are plotted.
 """
 
 from __future__ import annotations
@@ -51,7 +52,7 @@ REDUCE_FIRST = False
 DOWNSAMPLE = 1
 
 # Methods to run (subset of the pipeline names)
-METHODS = ["skimage", "own", "aa", "aa_true", "flow"]
+METHODS = ["skimage", "own", "aa", "aa_true", "flow", "wcs"]
 
 PLOT_FORMAT = "pdf"
 
@@ -70,6 +71,7 @@ METHOD_LABELS = {
     "aa": "astroalign (translation only)",
     "aa_true": "astroalign (similarity)",
     "flow": "optical flow TV-L1",
+    "wcs": "WCS reproject (reference solution)",
 }
 
 
@@ -152,12 +154,21 @@ def downsample_ccd(ccd: CCDData, factor: int) -> CCDData:
     data = np.asarray(ccd.data, dtype=float)[sl]
     mask = np.asarray(ccd.mask, dtype=bool)[sl]
     unc = np.asarray(ccd.uncertainty.array, dtype=float)[sl]
+    wcs_out = None
+    if ccd.wcs is not None:
+        wcs_out = ccd.wcs.deepcopy()
+        wcs_out.wcs.crpix = (np.asarray(wcs_out.wcs.crpix, dtype=float) - 1.0) / factor + 1.0
+        if wcs_out.wcs.has_cd():
+            wcs_out.wcs.cd = np.asarray(wcs_out.wcs.cd, dtype=float) * factor
+        else:
+            wcs_out.wcs.cdelt = np.asarray(wcs_out.wcs.cdelt, dtype=float) * factor
     return CCDData(
         data,
         mask=mask,
         uncertainty=StdDevUncertainty(unc),
         meta=ccd.meta,
         unit=ccd.unit,
+        wcs=wcs_out,
     )
 
 
@@ -171,6 +182,7 @@ def match_shapes(a: CCDData, b: CCDData) -> tuple[CCDData, CCDData]:
             uncertainty=StdDevUncertainty(a.uncertainty.array[:ny, :nx]),
             meta=a.meta,
             unit=a.unit,
+            wcs=a.wcs,
         )
     if (b.data.shape[0], b.data.shape[1]) != (ny, nx):
         b = CCDData(
@@ -179,6 +191,7 @@ def match_shapes(a: CCDData, b: CCDData) -> tuple[CCDData, CCDData]:
             uncertainty=StdDevUncertainty(b.uncertainty.array[:ny, :nx]),
             meta=b.meta,
             unit=b.unit,
+            wcs=b.wcs,
         )
     return a, b
 
@@ -269,6 +282,32 @@ def run_flow(ref: CCDData, other: CCDData) -> MethodResult:
     return result
 
 
+def run_wcs(ref: CCDData, other: CCDData) -> MethodResult:
+    from ost_photometry.reduce.registration.wcs_align import (
+        celestial_wcs_from_ccd,
+        pixel_offset_on_reference,
+        reproject_ccd_onto_wcs,
+    )
+
+    result = MethodResult(name="wcs")
+    src_wcs = celestial_wcs_from_ccd(other)
+    dst_wcs = celestial_wcs_from_ccd(ref)
+    if src_wcs is None or dst_wcs is None:
+        result.error = "no celestial WCS on one or both frames"
+        return result
+    result.dx, result.dy = pixel_offset_on_reference(
+        src_wcs, other.data.shape, dst_wcs
+    )
+    aligned_ccd = reproject_ccd_onto_wcs(
+        other, dst_wcs, tuple(int(n) for n in ref.data.shape)
+    )
+    result.aligned = np.asarray(aligned_ccd.data, dtype=float)
+    result.residual, result.rms, result.median_abs = residual_stats(
+        np.asarray(ref.data, dtype=float), result.aligned
+    )
+    return result
+
+
 def run_method(name: str, ref: CCDData, other: CCDData, tmp: Path) -> MethodResult:
     try:
         if name in {"skimage", "own", "aa"}:
@@ -277,6 +316,8 @@ def run_method(name: str, ref: CCDData, other: CCDData, tmp: Path) -> MethodResu
             return run_aa_true(ref, other)
         if name == "flow":
             return run_flow(ref, other)
+        if name == "wcs":
+            return run_wcs(ref, other)
         raise ValueError(f"Unknown method {name!r}")
     except Exception as exc:
         return MethodResult(name=name, error=f"{type(exc).__name__}: {exc}")
@@ -322,7 +363,7 @@ def plot_shift_summary(results: list[MethodResult], path: Path, *, scale: float)
     axes[1].set_xticklabels(names, rotation=30, ha="right")
     axes[1].set_ylabel("Rotation [deg]")
     ax1b.set_ylabel("Scale")
-    axes[1].set_title("Similarity (aa_true)")
+    axes[1].set_title("Similarity (aa_true) / extra")
     axes[1].grid(True, axis="y", alpha=0.3)
 
     axes[2].bar(x, rms, color="0.45")
@@ -502,7 +543,8 @@ def reduce_dataset(dataset: Path, output: Path) -> Path:
         str(output),
         image_type_dir=get_image_types(),
         stack_images=False,
-        find_wcs=False,
+        find_wcs=True,
+        find_wcs_of_all_images=True,
         save_only_transformation=True,
         estimate_fwhm=False,
         debug=False,
@@ -527,16 +569,36 @@ def synthetic_pair(shift_yx: tuple[float, float] = (2.5, -3.0)) -> tuple[CCDData
     other = ndi_shift(ref, shift=shift_yx, order=3)
     try:
         import astropy.units as u
+        from astropy.wcs import WCS
 
         unit = u.adu
     except Exception:
         unit = "adu"
+        WCS = None
     kw = dict(
         mask=np.zeros_like(ref, dtype=bool),
         uncertainty=StdDevUncertainty(np.ones_like(ref)),
         unit=unit,
     )
-    return CCDData(ref, **kw), CCDData(other, **kw)
+    dy, dx = float(shift_yx[0]), float(shift_yx[1])
+    ref_ccd = CCDData(ref, **kw)
+    other_ccd = CCDData(other, **kw)
+    if WCS is not None:
+        def _tan(crpix_xy: tuple[float, float]) -> WCS:
+            wcs = WCS(naxis=2)
+            wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+            wcs.wcs.crval = [10.0, 20.0]
+            wcs.wcs.crpix = list(crpix_xy)
+            wcs.wcs.cdelt = [-0.0002, 0.0002]
+            wcs.wcs.cunit = ["deg", "deg"]
+            wcs.wcs.radesys = "ICRS"
+            return wcs
+
+        crpix = ((nx + 1) / 2.0, (ny + 1) / 2.0)
+        ref_ccd.wcs = _tan(crpix)
+        # Pixel content moved by (dx, dy); CRPIX follows the same sky point.
+        other_ccd.wcs = _tan((crpix[0] + dx, crpix[1] + dy))
+    return ref_ccd, other_ccd
 
 
 def compare_frames(
