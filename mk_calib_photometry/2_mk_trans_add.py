@@ -223,12 +223,6 @@ camera = 'QHY600M'
 
 
 ###
-#   Multiprocessing
-#
-ncores = 6
-
-
-###
 #   Expert interface
 #   -> add here, if images from more than 2 filters should be reduced
 #
@@ -291,7 +285,6 @@ if __name__ == '__main__':
         wcs_method=wcs_method,
         ref_id=ref_ID,
         sigma_psf=sigma_psf,
-        ncores=ncores,
         methode=methode,
         sigma_bkg=sigma_bkg,
         multi_start=multi_start,
