@@ -133,7 +133,6 @@ if __name__ == "__main__":
         image_paths=img_paths,
         output_dir=output_dir,
         config=config,
-        extraction_mode="auto",
     )
 
     ###
