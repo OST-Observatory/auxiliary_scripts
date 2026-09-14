@@ -4,9 +4,13 @@
 Reads ``<output_dir>/tables/calibrated_magnitudes*.ecsv`` (or the instrumental
 ``extracted_magnitudes*.ecsv`` fallback) and answers two questions per star:
 
-1. Is the track one star?  On a registered series (``aa_true`` / ``wcs`` with
-   ``shift_all=True``) the same ``id`` must sit at the same pixel in every
-   epoch.  A large x/y spread means several stars were mixed into one id.
+1. Is the track one star?  The same ``id`` must sit at the same sky position
+   (``ra``/``dec``) in every epoch; the spread is reported in arcsec.  A large
+   spread means several stars were mixed into one id.  The pixel spread
+   (``x``/``y``) is printed as well, but it only measures identity on a
+   registered series (``aa_true`` / ``wcs`` with ``shift_all=True``); with a
+   translation-only (``aa``) or unaligned series it just shows the frame
+   drift.
 
 2. Is the jump instrumental or introduced by the calibration?  Compares the
    epoch-to-epoch scatter of the instrumental magnitude ``mag_<F>`` with that
@@ -65,6 +69,32 @@ def _nanstd(a: np.ndarray) -> float:
     return float(np.std(a)) if a.size > 1 else np.nan
 
 
+_PLACEHOLDER_NAMES = {"", "--", "nan", "none", "null", "0", "masked"}
+
+
+def _is_real_name(value) -> bool:
+    text = str(value).strip()
+    return text.lower() not in _PLACEHOLDER_NAMES
+
+
+def _sky_offsets_arcsec(ra: np.ndarray, dec: np.ndarray) -> np.ndarray:
+    """Offsets (arcsec) of each epoch from the median sky position."""
+    ok = np.isfinite(ra) & np.isfinite(dec)
+    out = np.full(ra.size, np.nan)
+    if np.count_nonzero(ok) == 0:
+        return out
+    ra0 = float(np.median(ra[ok]))
+    dec0 = float(np.median(dec[ok]))
+    dra = (ra[ok] - ra0) * np.cos(np.deg2rad(dec0)) * 3600.0
+    ddec = (dec[ok] - dec0) * 3600.0
+    out[ok] = np.hypot(dra, ddec)
+    return out
+
+
+#: Sky offset above which an id is flagged as mixing several stars.
+SKY_JUMP_ARCSEC = 3.0
+
+
 def _fmt(v: float, w: int = 7, p: int = 3) -> str:
     return f"{v:{w}.{p}f}" if np.isfinite(v) else " " * (w - 3) + "nan"
 
@@ -117,38 +147,44 @@ def report_ids(tbl: Table, filt: str, ids: list[int], verbose: bool) -> None:
     eids = np.asarray(tbl["epoch_id"]).astype(str)
     x = _col(tbl, "x")
     y = _col(tbl, "y")
+    ra = _col(tbl, "ra")
+    dec = _col(tbl, "dec")
     inst = _col(tbl, f"mag_{filt}", f"mag_inst_{filt}")
     cal = _col(tbl, f"mag_cal_{filt}")
     std = _col(tbl, f"mag_std_{filt}")
     jd = _epoch_jd(tbl)
     am = _col(tbl, f"airmass_{filt}", "airmass")
     print(f"\n=== Per-star check, filter {filt} ===")
-    print("id      n_ep  dx_rms  dy_rms  max_off   inst_rms  cal_rms   cat_mag  cal_med")
+    print(
+        "id      n_ep  sky_rms\"  sky_max\"  pix_max   inst_rms  cal_rms   cat_mag  cal_med"
+    )
     for sid in ids:
         m = all_ids == int(sid)
         if not np.any(m):
             print(f"{sid:<7d} not in table")
             continue
         n_ep = int(np.sum(m))
-        if x is not None and y is not None:
-            dx = x[m] - np.median(x[m])
-            dy = y[m] - np.median(y[m])
-            dx_rms = float(np.sqrt(np.mean(dx**2)))
-            dy_rms = float(np.sqrt(np.mean(dy**2)))
-            max_off = float(np.max(np.hypot(dx, dy)))
+        if ra is not None and dec is not None:
+            off_sky = _sky_offsets_arcsec(ra[m], dec[m])
+            sky_rms = float(np.sqrt(np.nanmean(off_sky**2))) if np.any(np.isfinite(off_sky)) else np.nan
+            sky_max = float(np.nanmax(off_sky)) if np.any(np.isfinite(off_sky)) else np.nan
         else:
-            dx_rms = dy_rms = max_off = np.nan
+            sky_rms = sky_max = np.nan
+        if x is not None and y is not None:
+            pix_max = float(np.max(np.hypot(x[m] - np.median(x[m]), y[m] - np.median(y[m]))))
+        else:
+            pix_max = np.nan
         inst_rms = _nanstd(inst[m]) if inst is not None else np.nan
         cal_rms = _nanstd(cal[m]) if cal is not None else np.nan
         cat = _nanmedian(std[m]) if std is not None else np.nan
         cal_med = _nanmedian(cal[m]) if cal is not None else np.nan
         flag = ""
-        if np.isfinite(max_off) and max_off > 3.0:
-            flag += "  <-- position jumps: several stars in one id"
+        if np.isfinite(sky_max) and sky_max > SKY_JUMP_ARCSEC:
+            flag += "  <-- position jumps on the sky: several stars in one id"
         if np.isfinite(inst_rms) and np.isfinite(cal_rms) and cal_rms > 2.0 * inst_rms + 0.02:
             flag += "  <-- calibration adds scatter (ZP / colour term)"
         print(
-            f"{sid:<7d} {n_ep:4d}  {_fmt(dx_rms, 6, 2)}  {_fmt(dy_rms, 6, 2)}  {_fmt(max_off, 7, 2)}"
+            f"{sid:<7d} {n_ep:4d}  {_fmt(sky_rms, 7, 2)}  {_fmt(sky_max, 7, 2)}  {_fmt(pix_max, 7, 2)}"
             f"   {_fmt(inst_rms)}   {_fmt(cal_rms)}   {_fmt(cat)}  {_fmt(cal_med)}{flag}"
         )
         if verbose:
@@ -173,9 +209,13 @@ def ooi_and_top_ids(output_dir: str, filt: str, top: int) -> tuple[list[int], li
     lc_path = os.path.join(tdir, "light_curves.ecsv")
     if os.path.exists(lc_path):
         lc = Table.read(lc_path, format="ascii.ecsv")
-        names = np.asarray(lc["object_name"]).astype(str)
-        ids = np.asarray(lc["id"], dtype=int)
-        ooi = sorted({int(i) for i, n in zip(ids, names, strict=True) if n.strip()})
+        if "object_name" in lc.colnames:
+            col = lc["object_name"]
+            names = np.asarray(col.filled("") if hasattr(col, "filled") else col).astype(str)
+            ids = np.asarray(lc["id"], dtype=int)
+            ooi = sorted(
+                {int(i) for i, n in zip(ids, names, strict=True) if _is_real_name(n)}
+            )
     worst: list[int] = []
     st_path = os.path.join(tdir, "calibrator_variability_stats.ecsv")
     if os.path.exists(st_path) and top > 0:
@@ -210,33 +250,51 @@ def main() -> None:
         report_ids(tbl, args.filter, ids, args.verbose)
 
     if args.all:
+        ra = _col(tbl, "ra")
+        dec = _col(tbl, "dec")
         x = _col(tbl, "x")
         y = _col(tbl, "y")
-        if x is None or y is None:
-            print("\nNo x/y columns; cannot scan positions.")
-            return
         all_ids = np.asarray(tbl["id"], dtype=int)
-        bad: list[tuple[int, float]] = []
-        for sid in np.unique(all_ids):
-            m = all_ids == sid
-            if np.sum(m) < 3:
-                continue
-            off = np.hypot(x[m] - np.median(x[m]), y[m] - np.median(y[m]))
-            if np.max(off) > 3.0:
-                bad.append((int(sid), float(np.max(off))))
-        bad.sort(key=lambda t: -t[1])
-        print(
-            f"\nPosition scan: {len(bad)} of {np.unique(all_ids).size} ids move by > 3 px "
-            "between epochs"
-        )
-        for sid, off in bad[:20]:
-            print(f"   id {sid}: max offset {off:.1f} px")
-        if len(bad) > 0.05 * np.unique(all_ids).size:
+        uniq = np.unique(all_ids)
+        if ra is not None and dec is not None:
+            bad: list[tuple[int, float]] = []
+            for sid in uniq:
+                m = all_ids == sid
+                if np.sum(m) < 3:
+                    continue
+                off = _sky_offsets_arcsec(ra[m], dec[m])
+                if np.any(np.isfinite(off)) and np.nanmax(off) > SKY_JUMP_ARCSEC:
+                    bad.append((int(sid), float(np.nanmax(off))))
+            bad.sort(key=lambda t: -t[1])
             print(
-                "   Many ids move: the frames are NOT on one pixel grid, or intra-filter"
-                " matching ran on the sky with noisy per-frame WCS. Check the log line"
-                " 'Intra-filter matching in pixel coordinates'."
+                f"\nSky position scan: {len(bad)} of {uniq.size} ids move by "
+                f"> {SKY_JUMP_ARCSEC:.0f}\" between epochs (identity check)"
             )
+            for sid, off in bad[:20]:
+                print(f"   id {sid}: max sky offset {off:.1f}\"")
+        else:
+            print("\nNo ra/dec columns; cannot check identity on the sky.")
+        if x is not None and y is not None:
+            pix = []
+            for sid in uniq:
+                m = all_ids == sid
+                if np.sum(m) < 3:
+                    continue
+                pix.append(np.max(np.hypot(x[m] - np.median(x[m]), y[m] - np.median(y[m]))))
+            if pix:
+                pix_arr = np.asarray(pix)
+                n_move = int(np.sum(pix_arr > 3.0))
+                print(
+                    f"Pixel drift (info): median max offset {np.median(pix_arr):.1f} px, "
+                    f"{n_move} of {pix_arr.size} ids move by > 3 px"
+                )
+                if n_move > 0.05 * pix_arr.size:
+                    print(
+                        "   Frames are NOT on one pixel grid (translation-only 'aa' or"
+                        " unaligned series). Intra-filter matching then runs on the sky"
+                        " and needs a per-frame WCS (wcs_solve_all_images=True); check"
+                        " the log line 'Intra-filter matching on sky'."
+                    )
 
 
 if __name__ == "__main__":
