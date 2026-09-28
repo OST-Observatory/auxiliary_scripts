@@ -546,7 +546,7 @@ def reduce_dataset(dataset: Path, output: Path) -> Path:
         find_wcs=True,
         find_wcs_of_all_images=True,
         save_only_transformation=True,
-        estimate_fwhm=False,
+        measure_frame_quality=False,
         debug=False,
     )
     light = output / "light"

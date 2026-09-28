@@ -49,10 +49,6 @@ flats = '?'
 imgs  = '?'
 
 
-################################  Camera  ##################################
-camera = 'QHY600M'
-
-
 ############################################################################
 ####             Additional options: only edit if necessary             ####
 ############################################################################
@@ -68,6 +64,9 @@ outdir='output/'
 ##   Verbose output
 #verbose = True
 verbose = False
+
+#   Number of cores used for multiprocessing (None = half the CPUs)
+n_cores_multiprocessing = None
 
 
 ###
@@ -91,24 +90,31 @@ stack = False
 
 
 ###
+#   Frame quality
+#
+#   Measure FWHM, roundness, number of stars and sky background of every
+#   reduced frame (output/frame_quality.ecsv, FITS headers, QC plots).
+measure_frame_quality = True
+
+#   Reject poor frames before the alignment; None keeps every frame.
+#   Example: drop frames with a strongly deviating FWHM or almost no stars.
+frame_selection = None
+#frame_selection = {"fwhm_sigma_clip": 3.0, "n_stars_min": 20}
+
+#   Alignment reference: "best_fwhm" (sharpest frame) or "first".
+reference_image_selection = "best_fwhm"
+
+
+###
 #   Camera specific parameters
 #
-if camera == 'STF8300':
-    readnoise = 9.3
-    gain      = None
-    dark_rate = {0:0.18, -10:0.04, -15.8:0.02}
-    satlevel  = 65535.
-elif camera == 'QHY600M':
-    readnoise = 7.904
-    gain      = 1.292
-    dark_rate = {-20:0.0022, -10:0.0046}
-    satlevel  = 65535.
-else:
-    raise RuntimeError(
-        "Error: camera type not known\n"
-        "\t-> check variable: camera\n"
-        "\t-> Exit\n"
-        )
+#   Read noise, system gain, dark current and saturation level are taken
+#   from the FITS header and the bundled camera catalog
+#   (ost_photometry/data/cameras.json). Set a value here only to override.
+gain      = None
+readnoise = None
+dark_rate = None
+satlevel  = None
 
 
 ############################################################################
@@ -161,4 +167,8 @@ if __name__ == '__main__':
         sigma_clipping_value_rm_cosmic_rays=sigclip,
         debug=verbose,
         stack_images=stack,
+        n_cores_multiprocessing=n_cores_multiprocessing,
+        measure_frame_quality=measure_frame_quality,
+        frame_selection=frame_selection,
+        reference_image_selection=reference_image_selection,
     )
