@@ -218,9 +218,6 @@ rmcos = False
 objlim  = 5.
 sigclip = 4.0
 
-#   Needs to changed in the future
-camera = 'QHY600M'
-
 
 ###
 #   Expert interface
@@ -231,25 +228,13 @@ img_dirs    = {filter_1:img_1, filter_2:img_2}
 sigma_psf   = {filter_1:sigma, filter_2:sigma}
 
 ###
-#   Camera specific parameters (for reference; cosmic ray removal
-#   is typically done in 1_reduce_images.py)
+#   Read noise (e-) and saturation for the cosmic ray removal. ``None`` takes
+#   them from the RDNOISE / SATLEVEL header keywords written by
+#   1_reduce_images.py (already converted for binning and for stacks); set a
+#   value here only to override.
 #
-if camera == 'STF8300':
-    readnoise = 9.3
-    gain      = None
-    dark_rate = {0:0.18, -10:0.04, -15.8:0.02}
-    satlevel  = 65535.
-elif camera == 'QHY600M':
-    readnoise = 7.904
-    gain      = 1.292
-    dark_rate = {-20:0.0022, -10:0.0046}
-    satlevel  = 65535.
-else:
-    raise RuntimeError(
-        "Error: camera type not known\n"
-        "\t-> check variable: camera\n"
-        "\t-> Exit\n"
-    )
+readnoise = None
+satlevel  = None
 
 
 ############################################################################

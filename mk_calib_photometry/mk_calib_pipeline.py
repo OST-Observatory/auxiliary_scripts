@@ -51,9 +51,9 @@ def build_transformation_pipeline_config(
     file_calib: str | None,
     mag_range: tuple[float, float],
     rmcos: bool = False,
-    readnoise: float = 8.0,
+    readnoise: float | None = None,
     sigclip: float = 4.5,
-    satlevel: float = 65535.0,
+    satlevel: float | None = None,
     objlim: float = 5.0,
 ) -> PipelineConfig:
     """Pipeline config for WCS, extraction, and intra correlation (mk_calib step 2)."""
