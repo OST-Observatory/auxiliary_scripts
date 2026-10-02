@@ -90,7 +90,16 @@ shift_method: str = "wcs"
 #   noise-weighted stack over all cameras per filter (imaging).
 camera_combination: str = "separate"
 
+#   Keep the registered single frames (``stacks/<target>/aligned_lights/``).
+#   With True, the reduced frames (``reduced/<unit>/``) of every aligned frame
+#   are deleted after stacking unless ``keep_reduced_lights`` is True, so each
+#   frame is stored once.
 keep_aligned_lights: bool = True
+keep_reduced_lights: bool = False
+
+#   Floating type of masters, reduced / aligned frames and stacks: "float32"
+#   (half the disk space, rounding far below the pixel noise) or "float64".
+storage_dtype: str = "float32"
 
 ############################################################################
 #                               Libraries                                  #
@@ -147,6 +156,7 @@ if __name__ == "__main__":
             read_noise=read_noise,
             n_cores_multiprocessing=n_cores_multiprocessing,
             reuse_masters=reuse_masters,
+            storage_dtype=storage_dtype,
         ),
         log=lambda text: print("   " + text, flush=True),
     )
@@ -166,6 +176,7 @@ if __name__ == "__main__":
             shift_method=shift_method,
             camera_combination=camera_combination,
             keep_aligned_lights=keep_aligned_lights,
+            keep_reduced_lights=keep_reduced_lights,
             min_frames=min_frames,
             n_cores_multiprocessing=n_cores_multiprocessing,
         ),

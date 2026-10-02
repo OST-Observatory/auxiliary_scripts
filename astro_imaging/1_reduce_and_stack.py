@@ -176,6 +176,10 @@ reference_image_index: int | None = None
 #   ``2_restack.py`` and useful for drizzle in Siril. Costs disk space.
 keep_aligned_lights: bool = True
 
+#   Floating type of the written frames and stacks: "float32" (half the disk
+#   space, rounding far below the pixel noise) or "float64".
+storage_dtype: str = "float32"
+
 #   Solve a WCS on the stacked images (ASTAP by default). Useful for later
 #   annotation / plate matching; disable if ASTAP is not installed.
 find_wcs: bool = True
@@ -290,6 +294,7 @@ if __name__ == "__main__":
         reference_image_selection=reference_image_selection,
         reference_image_index=reference_image_index,
         keep_aligned_lights=keep_aligned_lights,
+        storage_dtype=storage_dtype,
         #   WCS on the stacks only
         find_wcs=find_wcs,
         wcs_method=wcs_method,
