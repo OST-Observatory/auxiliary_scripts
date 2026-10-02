@@ -41,9 +41,26 @@ targets: list[str] | None = None
 ############################################################################
 #                                Reduction                                 #
 ############################################################################
-rm_cosmic_rays: bool = True
+#   Cosmic-ray removal (L.A.Cosmic): True, False or "auto". "auto" removes
+#   cosmics only from frames whose stack (target x camera x filter) has fewer
+#   than ``cosmic_ray_auto_min_frames`` frames; larger stacks reject them by
+#   sigma clipping, without eating into the sky noise.
+rm_cosmic_rays: bool | str = "auto"
+cosmic_ray_auto_min_frames: int = 7
 
-#   Electronics overrides (``None`` = header / camera catalog).
+#   Gain and read noise: "catalog" (header / camera catalog, read noise
+#   scaled to the binned pixel) or "measured" (per electronic setup from bias
+#   and flat pairs; falls back to the catalog where that is not possible).
+camera_noise_source: str = "catalog"
+# camera_noise_source: str = "measured"
+
+#   How the camera bins, for the catalog read noise: "auto" (camera
+#   catalog), "digital" (CMOS: read noise x sqrt(xbin * ybin)) or "charge"
+#   (CCD on-chip binning).
+binning_mode: str = "auto"
+
+#   Electronics overrides (``None`` = see camera_noise_source). ``read_noise``
+#   is per pixel of the images, i.e. per binned pixel.
 gain: float | None = None
 read_noise: float | None = None
 
@@ -123,6 +140,9 @@ if __name__ == "__main__":
         out,
         ReductionSettings(
             rm_cosmic_rays=rm_cosmic_rays,
+            cosmic_ray_auto_min_frames=cosmic_ray_auto_min_frames,
+            camera_noise_source=camera_noise_source,
+            binning_mode=binning_mode,
             gain=gain,
             read_noise=read_noise,
             n_cores_multiprocessing=n_cores_multiprocessing,

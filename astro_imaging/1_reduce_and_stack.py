@@ -75,11 +75,25 @@ output_dir: str = "output/"
 #   ``None`` uses every light frame.
 target_name: str | None = None
 
-#   Remove cosmic rays (L.A.Cosmic). With many frames the sigma-clipped stack
-#   already rejects most cosmics; switch off for strongly undersampled stars
-#   (FWHM < ~2 px), where L.A.Cosmic can nibble at star cores.
-rm_cosmic_rays: bool = True
-# rm_cosmic_rays: bool = False
+#   Remove cosmic rays (L.A.Cosmic): True, False or "auto". "auto" leaves
+#   them to the sigma-clipped stack for filters with at least
+#   ``cosmic_ray_auto_min_frames`` frames and removes them otherwise. Avoid
+#   True for strongly undersampled stars (FWHM < ~2 px), where L.A.Cosmic
+#   can nibble at star cores.
+rm_cosmic_rays: bool | str = "auto"
+# rm_cosmic_rays: bool | str = True
+cosmic_ray_auto_min_frames: int = 7
+
+#   Gain and read noise: "catalog" (header / camera catalog, read noise
+#   scaled to the binned pixel) or "measured" (from the bias and flat pairs
+#   of this data set; falls back to the catalog if that is not possible).
+camera_noise_source: str = "catalog"
+# camera_noise_source: str = "measured"
+
+#   How the camera bins, for the catalog read noise: "auto" (camera
+#   catalog), "digital" (CMOS: read noise x sqrt(xbin * ybin)) or "charge"
+#   (CCD on-chip binning).
+binning_mode: str = "auto"
 
 #   Tolerance between science and dark exposure times in s
 exposure_time_tolerance: float = 5.0
@@ -257,6 +271,9 @@ if __name__ == "__main__":
         raw_files,
         output_dir,
         rm_cosmic_rays=rm_cosmic_rays,
+        cosmic_ray_auto_min_frames=cosmic_ray_auto_min_frames,
+        camera_noise_source=camera_noise_source,
+        binning_mode=binning_mode,
         exposure_time_tolerance=exposure_time_tolerance,
         temperature_tolerance=temperature_tolerance,
         target_name=target_name,
