@@ -55,6 +55,12 @@ calib_window_days: float = 7.0
 #   Anonymous access (public runs only, slow rate limit).
 anonymous: bool = False
 
+#   Science exposures without matching darks (same camera, binning, gain,
+#   offset, readout mode, exposure time, temperature +-2 K) in the window:
+#   ask the archive's dark finder and download the darks of the closest run.
+#   Needs a login (not anonymous).
+use_dark_finder: bool = True
+
 #   Download also the context frames (other lights in the window). Only
 #   their metadata is needed for the grouping.
 download_context: bool = False
@@ -124,6 +130,7 @@ if __name__ == "__main__":
             calib_window_days=calib_window_days,
             cache_dir=Path(cache_dir).expanduser(),
             download_context=download_context,
+            use_dark_finder=use_dark_finder,
             progress=_progress,
         )
         report_lines = report.lines()

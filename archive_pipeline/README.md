@@ -9,7 +9,7 @@ Needs `ost_photometry` ≥ 0.6 and ASTAP (`astap_cli`) for plate solving.
 
 | Script | Role |
 |--------|------|
-| `1_fetch.py` | Download the science frames of an object or run, all bias / dark / flat candidates of these runs and of neighbouring runs (`calib_window_days`), and metadata of other lights in that window. Content-addressed cache, checksums verified. Works also on a local directory tree (`local_directory`). |
+| `1_fetch.py` | Download the science frames of an object or run, all bias / dark / flat candidates of these runs and of neighbouring runs (`calib_window_days`), and metadata of other lights in that window. Science exposures without matching darks get darks from the archive's dark finder (`use_dark_finder`, needs a login). Content-addressed cache, checksums verified. Works also on a local directory tree (`local_directory`). |
 | `2_classify_and_group.py` | Frame types from image statistics, electronic setups, targets by sky position, camera orientation (archive WCS or local ASTAP), mount sessions, flat probabilities, reduction units. Writes `calibration_plan.yaml`, `calibration_groups.ecsv` and timeline plots. |
 | `3_reduce_and_stack.py` | Masters per calibration group, lights per unit, then per target: quality selection, registration onto one grid, weighted stack per camera and filter over all nights; optional camera combination. |
 
