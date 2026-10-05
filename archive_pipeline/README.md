@@ -9,8 +9,8 @@ Needs `ost_photometry` ≥ 0.6 and ASTAP (`astap_cli`) for plate solving.
 
 | Script | Role |
 |--------|------|
-| `1_fetch.py` | Download the science frames of an object or run, all bias / dark / flat candidates of these runs and of neighbouring runs (`calib_window_days`), and metadata of other lights in that window. Science exposures without matching darks get darks from the archive's dark finder (`use_dark_finder`, needs a login). Content-addressed cache, checksums verified. Works also on a local directory tree (`local_directory`). |
-| `2_classify_and_group.py` | Frame types from image statistics, electronic setups, targets by sky position, camera orientation (archive WCS or local ASTAP), mount sessions, flat probabilities, reduction units. Writes `calibration_plan.yaml`, `calibration_groups.ecsv` and timeline plots. |
+| `1_fetch.py` | Download the science frames of an object or run, all bias / dark / flat candidates of these runs and of neighbouring runs (`calib_window_days`), and metadata of other lights in that window. Science exposures without matching darks, and setups without bias, get frames from the archive's dark / bias finder (`use_dark_finder`, `finder_kinds`, needs a login). Content-addressed cache, checksums verified. Works also on a local directory tree (`local_directory`). |
+| `2_classify_and_group.py` | Frame types from image statistics, electronic setups, targets by sky position, camera orientation (archive WCS or local ASTAP), mount sessions, flat probabilities, reduction units. Writes `calibration_plan.yaml`, `calibration_groups.ecsv`, `missing_calibrations.ecsv` and timeline plots. Lights without complete calibration are marked incomplete. |
 | `3_reduce_and_stack.py` | Masters per calibration group, lights per unit, then per target: quality selection, registration onto one grid, weighted stack per camera and filter over all nights; optional camera combination. |
 
 ```bash
@@ -60,6 +60,19 @@ factors: dust pattern matches (×3) or differs (×0.2), vignetting differs
 least "likely". Without an applicable flat, `no_flat_policy` decides
 (`best_available`, `skip_flat`, `exclude_lights`).
 
+## Only complete calibration is reduced
+
+With `require_complete = True` (default) a unit's lights are reduced only if
+darks match their exposure time (`max(0.5 s, 5 %)`, or scaled with a bias)
+and their filter has a flat of an accepted category
+(`accepted_flat_categories`, default certain + likely). Other lights are
+listed as `INCOMPLETE` in the report, marked `status: incomplete` in the
+plan, and skipped by `3_reduce_and_stack.py` (`reduce_incomplete = True`
+or `overrides.force_units` reduces them anyway).
+`missing_calibrations.ecsv` lists the bias / dark series still to take
+(camera, binning, gain, offset, readout mode, temperature, exposure time,
+number of frames).
+
 ## Overrides (`calibration_plan.yaml`)
 
 ```yaml
@@ -72,6 +85,7 @@ overrides:
   merge_targets: [["M31 panel 1", "M31 panel 2"]]
   rename_targets: {T03: "NGC 7000"}
   no_stack_targets: ["field_283.396+33.029"]
+  force_units: [U02_S20260326_02_qhy600m]         # reduce despite incomplete calibration
 ```
 
 Edit, then run `2_classify_and_group.py` again (plate solutions are cached).
@@ -82,7 +96,8 @@ Edit, then run `2_classify_and_group.py` again (plate solutions are cached).
 |------|---------|
 | `<workspace>/manifest.ecsv` | all frames with archive and header metadata |
 | `<workspace>/calibration_groups.ecsv` | frame type, setup, session, target, flat set, masters per frame |
-| `<workspace>/calibration_plan.yaml` | units, masters, targets, flat candidates with probabilities |
+| `<workspace>/calibration_plan.yaml` | units (with status and blocked filters / exposure times), masters, targets, flat candidates with probabilities |
+| `<workspace>/missing_calibrations.ecsv` | bias / dark series to take for complete calibration |
 | `<workspace>/diagnostics/calibration_groups/timeline_*.pdf` | orientation and frames over the night |
 | `<output>/masters/`, `<output>/reduced/<unit>/` | masters and reduced lights (e-/s) |
 | `<output>/stacks/<target>/<camera>/combined_filter_<F>.fit` | stacks |

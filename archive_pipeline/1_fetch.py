@@ -56,10 +56,16 @@ calib_window_days: float = 7.0
 anonymous: bool = False
 
 #   Science exposures without matching darks (same camera, binning, gain,
-#   offset, readout mode, exposure time, temperature +-2 K) in the window:
-#   ask the archive's dark finder and download the darks of the closest run.
-#   Needs a login (not anonymous).
+#   offset, readout mode, exposure time, temperature +-2 K) or setups
+#   without bias in the window: ask the archive's dark / bias finder and
+#   download the frames of the closest run. Needs a login (not anonymous).
 use_dark_finder: bool = True
+finder_kinds: list[str] = ["dark", "bias"]
+
+#   Darks match lights within max(dark_exptime_tolerance s,
+#   fraction x exposure time) -- as in 2_classify_and_group.py.
+dark_exptime_tolerance: float = 0.5
+dark_exptime_tolerance_fraction: float = 0.05
 
 #   Download also the context frames (other lights in the window). Only
 #   their metadata is needed for the grouping.
@@ -131,6 +137,9 @@ if __name__ == "__main__":
             cache_dir=Path(cache_dir).expanduser(),
             download_context=download_context,
             use_dark_finder=use_dark_finder,
+            finder_kinds=finder_kinds,
+            exptime_tolerance=dark_exptime_tolerance,
+            exptime_tolerance_fraction=dark_exptime_tolerance_fraction,
             progress=_progress,
         )
         report_lines = report.lines()

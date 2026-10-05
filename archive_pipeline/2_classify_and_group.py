@@ -66,11 +66,25 @@ p_uncertain: float = 0.4
 #   "exclude_lights" (do not reduce those lights).
 no_flat_policy: str = "best_available"
 
-#   Bias / darks: temperature tolerance (K), exposure tolerance (s), and
-#   the search window (days).
+#   Reduce only lights with complete calibration: darks for their exposure
+#   time and a flat of one of ``accepted_flat_categories``. Other lights are
+#   marked 'incomplete' in the plan and skipped by 3_reduce_and_stack.py;
+#   overrides.force_units in calibration_plan.yaml releases a unit.
+require_complete: bool = True
+accepted_flat_categories: list[str] = ["certain", "likely"]
+# accepted_flat_categories: list[str] = ["certain", "likely", "uncertain"]
+
+#   Bias / darks: temperature tolerance (K), exposure tolerance
+#   (max(dark_exptime_tolerance s, fraction x exposure time)), and the
+#   search window (days).
 temp_tolerance: float = 2.0
 dark_exptime_tolerance: float = 0.5
+dark_exptime_tolerance_fraction: float = 0.05
 calibration_window_days: float = 30.0
+
+#   Frames per series in missing_calibrations.ecsv (exposures still to take).
+n_darks_to_take: int = 20
+n_bias_to_take: int = 50
 
 #   Worker processes for the image statistics (``None`` = half the CPUs).
 n_cores_multiprocessing: int | None = None
@@ -96,6 +110,7 @@ from ost_photometry.reduce.grouping.plan import (
     build_calibration_plan,
     read_overrides,
     write_frames,
+    write_missing_calibrations,
     write_plan,
 )
 from ost_photometry.reduce.grouping.plots import plot_night_timelines
@@ -126,8 +141,11 @@ if __name__ == "__main__":
         target_overlap_fraction=target_overlap_fraction,
         target_grouping=target_grouping,
         dark_exptime_tolerance=dark_exptime_tolerance,
+        dark_exptime_tolerance_fraction=dark_exptime_tolerance_fraction,
         calibration_window_days=calibration_window_days,
         no_flat_policy=no_flat_policy,
+        require_complete=require_complete,
+        accepted_flat_categories=list(accepted_flat_categories),
         n_cores_multiprocessing=n_cores_multiprocessing,
         flat={"tau_days": tau_days, "p_certain": p_certain, "p_likely": p_likely,
               "p_uncertain": p_uncertain},
@@ -143,12 +161,26 @@ if __name__ == "__main__":
     write_plan(plan, plan_path)
     write_frames(plan, work / "calibration_groups.ecsv")
     plots = plot_night_timelines(plan, work)
+    missing = write_missing_calibrations(plan, work / "missing_calibrations.ecsv",
+                                         n_darks=n_darks_to_take, n_bias=n_bias_to_take)
+    if len(missing):
+        plan.report.append(f"Calibration frames still to take: {len(missing)} series "
+                           f"(missing_calibrations.ecsv):")
+        for row in missing:
+            what = f"{row['exptime']:g} s darks" if row["kind"] == "dark" else "bias"
+            plan.report.append(
+                f"  {row['n_frames']} x {what}: {row['camera']} {row['binning']} "
+                f"gain {row['gain']:g} offset {row['offset']:g} {row['readout_mode']} "
+                f"{row['set_temp']:g} C{'' if row['required'] else ' (recommended)'}"
+                f" for {row['needed_for']}"
+            )
     (work / "grouping_report.txt").write_text("\n".join(plan.report) + "\n")
     for line in plan.report:
         print("   " + line)
     print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
     print(f"   Plan:      {plan_path}  (edit 'overrides', then run this script again)")
     print(f"   Frames:    {work / 'calibration_groups.ecsv'}")
+    print(f"   Missing:   {work / 'missing_calibrations.ecsv'}  ({len(missing)} series to take)")
     print(f"   Timelines: {len(plots)} PDF(s) in {work / 'diagnostics' / 'calibration_groups'}")
     print("   Next: 3_reduce_and_stack.py")
     print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))

@@ -67,6 +67,11 @@ read_noise: float | None = None
 #   Reuse masters of a previous run.
 reuse_masters: bool = True
 
+#   Lights the plan marks 'incomplete' (darks or flats missing) are skipped.
+#   True reduces them anyway; to release single units use
+#   overrides.force_units in calibration_plan.yaml and rerun step 2.
+reduce_incomplete: bool = False
+
 n_cores_multiprocessing: int | None = None
 
 ############################################################################
@@ -157,6 +162,7 @@ if __name__ == "__main__":
             n_cores_multiprocessing=n_cores_multiprocessing,
             reuse_masters=reuse_masters,
             storage_dtype=storage_dtype,
+            reduce_incomplete=reduce_incomplete,
         ),
         log=lambda text: print("   " + text, flush=True),
     )
