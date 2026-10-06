@@ -106,6 +106,10 @@ from ost_photometry.archive import (
 ############################################################################
 
 
+def _log(text: str) -> None:
+    print(f"   {text}", flush=True)
+
+
 def _progress(i: int, n: int, name: str) -> None:
     if i == 1 or i == n or i % 25 == 0:
         print(f"   [{i}/{n}] {name}", flush=True)
@@ -125,9 +129,10 @@ if __name__ == "__main__":
                 f"{style.Bcolors.FAIL}Set exactly one of object_name or run_name "
                 f"(or local_directory).{style.Bcolors.ENDC}"
             )
-        client = ArchiveClient(archive_url)
+        client = ArchiveClient(archive_url, log=_log)
         if not anonymous:
             client.login()
+            _log(f"Logged in as {client.username}")
         manifest, report = fetch_dataset(
             client,
             object_name=object_name if object_name not in (None, "?") else None,
@@ -141,6 +146,7 @@ if __name__ == "__main__":
             exptime_tolerance=dark_exptime_tolerance,
             exptime_tolerance_fraction=dark_exptime_tolerance_fraction,
             progress=_progress,
+            log=_log,
         )
         report_lines = report.lines()
         client.logout()
