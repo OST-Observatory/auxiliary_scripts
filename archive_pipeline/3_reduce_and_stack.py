@@ -13,6 +13,9 @@
         scale), weighted stack per camera and filter over all nights,
       * optionally a noise-weighted combination of the cameras.
 
+    Re-stack with another selection / weighting without reducing and
+    registering again: ``4_restack.py`` (needs ``keep_aligned_lights``).
+
     Output in ``output_dir``:
       * ``masters/<master_id>/``             bias / dark / flat masters
       * ``reduced/<unit_id>/``               reduced lights (e-/s)
@@ -75,18 +78,65 @@ reduce_incomplete: bool = False
 n_cores_multiprocessing: int | None = None
 
 ############################################################################
-#                            Selection / stacking                          #
+#                       Frame quality and selection                        #
 ############################################################################
-#   Same meaning as in astro_imaging/1_reduce_and_stack.py; ``None`` = off.
-fwhm_max_px: float | None = None
-best_fraction: float | None = None
-roundness_max: float | None = None
-n_stars_min: int | None = None
-min_frames: int = 1
+#   Every criterion is optional (``None`` = off). All set criteria must pass
+#   (logical AND), evaluated per target, camera and filter. Frames that show
+#   no stars at all (clouds) are rejected as soon as any criterion is active.
 
+#   Reject frames whose FWHM exceeds this value in pixels ...
+fwhm_max_px: float | None = None
+#   ... or in arcsec (needs FOCALLEN and XPIXSZ in the header, or a WCS;
+#   the better choice when several cameras / binnings are combined).
+#   Set only one of the two.
+fwhm_max_arcsec: float | None = None
+
+#   Keep only the sharpest fraction of the frames that pass the thresholds
+#   (Siril "best X %"): 0.8 keeps the best 80 %. ``None`` keeps all.
+best_fraction: float | None = None
+
+#   Rank for ``best_fraction``: ``fwhm_px`` (sharpness only) or
+#   ``fwhm_weighted`` (Siril wFWHM: FWHM penalised by a low star count,
+#   i.e. thin clouds count against a frame).
+rank_by: str = "fwhm_px"
+
+#   Reject frames whose FWHM lies more than k robust sigmas (MAD) above the
+#   median of the group, e.g. 3.0. ``None`` = off.
+fwhm_sigma_clip: float | None = None
+
+#   Maximum IRAF roundness (0 = round, 1 = a line). Tracking errors, wind
+#   gusts and focus drift show up here. 0.3 is a good imaging default.
+roundness_max: float | None = None
+
+#   Minimum number of detected stars (transparency, thin clouds).
+n_stars_min: int | None = None
+
+#   Maximum sky background in e-/s/pixel (moon, twilight, haze).
+background_max: float | None = None
+
+#   Never keep fewer frames than this per group; the best rejected frames
+#   are restored if the selection would cut deeper.
+min_frames: int = 5
+
+#   Register also the rejected frames (they are not stacked) so that
+#   4_restack.py can loosen the selection later. Costs time and disk space.
+align_rejected: bool = False
+
+############################################################################
+#                                Stacking                                  #
+############################################################################
+#   Combine method: ``average`` (sigma-clipped, supports weights), ``median``
+#   (ignores weights), ``sum``.
 stack_method: str = "average"
-#   none | fwhm | n_stars | noise
+
+#   Per-frame weights for the stack: ``none``, ``fwhm`` ((median/FWHM)^2,
+#   sharp frames dominate; arcsec when pixel scales are mixed), ``n_stars``
+#   (transparency), ``noise`` ((median RMS / RMS)^2). Weights are normalised
+#   per group and clipped to 0.1-10 so a single frame cannot dominate.
 stack_weighting: str = "fwhm"
+
+#   Groups (target x camera x filter) with fewer kept frames are not stacked.
+min_frames_per_stack: int = 1
 
 #   "wcs" (rotation / different cameras; uses ASTAP when needed) or "aa_true".
 shift_method: str = "wcs"
@@ -95,7 +145,8 @@ shift_method: str = "wcs"
 #   noise-weighted stack over all cameras per filter (imaging).
 camera_combination: str = "separate"
 
-#   Keep the registered single frames (``stacks/<target>/aligned_lights/``).
+#   Keep the registered single frames (``stacks/<target>/aligned_lights/``);
+#   needed for 4_restack.py.
 #   With True, the reduced frames (``reduced/<unit>/``) of every aligned frame
 #   are deleted after stacking unless ``keep_reduced_lights`` is True, so each
 #   frame is stored once.
@@ -132,12 +183,27 @@ from ost_photometry.reduce.workflow.groups import ReductionSettings, reduce_plan
 ############################################################################
 
 
-def frame_selection() -> dict:
-    selection: dict = {"min_frames": min_frames}
-    for key, value in (("fwhm_max", fwhm_max_px), ("best_fraction", best_fraction),
-                       ("roundness_max", roundness_max), ("n_stars_min", n_stars_min)):
-        if value is not None:
-            selection[key] = value
+def build_frame_selection() -> dict:
+    """Translate the parameter block into a ``frame_selection`` mapping."""
+    if fwhm_max_px is not None and fwhm_max_arcsec is not None:
+        raise ValueError("Set either fwhm_max_px or fwhm_max_arcsec, not both.")
+    selection: dict = {"min_frames": min_frames, "rank_by": rank_by}
+    if fwhm_max_px is not None:
+        selection["fwhm_max"] = float(fwhm_max_px)
+        selection["fwhm_unit"] = "px"
+    elif fwhm_max_arcsec is not None:
+        selection["fwhm_max"] = float(fwhm_max_arcsec)
+        selection["fwhm_unit"] = "arcsec"
+    if best_fraction is not None:
+        selection["best_fraction"] = float(best_fraction)
+    if fwhm_sigma_clip is not None:
+        selection["fwhm_sigma_clip"] = float(fwhm_sigma_clip)
+    if roundness_max is not None:
+        selection["roundness_max"] = float(roundness_max)
+    if n_stars_min is not None:
+        selection["n_stars_min"] = int(n_stars_min)
+    if background_max is not None:
+        selection["background_max"] = float(background_max)
     return selection
 
 
@@ -176,14 +242,15 @@ if __name__ == "__main__":
         reduction,
         out,
         StackSettings(
-            frame_selection=frame_selection(),
+            frame_selection=build_frame_selection(),
             stack_weighting=stack_weighting,
             stack_method=stack_method,
             shift_method=shift_method,
             camera_combination=camera_combination,
             keep_aligned_lights=keep_aligned_lights,
             keep_reduced_lights=keep_reduced_lights,
-            min_frames=min_frames,
+            align_rejected=align_rejected,
+            min_frames=min_frames_per_stack,
             n_cores_multiprocessing=n_cores_multiprocessing,
         ),
         targets=targets,
@@ -194,4 +261,6 @@ if __name__ == "__main__":
         print(f"   {row['target_name']:20s} {row['camera']:12s} {row['filter']:8s} "
               f"{row['n_images']:4d} frames {row['exposure_s'] / 60:7.1f} min  {row['path']}")
     print(f"   Summary: {out / 'stacks' / 'summary.ecsv'}")
+    if keep_aligned_lights:
+        print("   Next (optional): 4_restack.py with another selection / weighting")
     print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))

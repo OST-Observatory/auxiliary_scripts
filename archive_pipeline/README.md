@@ -11,7 +11,8 @@ Needs `ost_photometry` ≥ 0.6 and ASTAP (`astap_cli`) for plate solving.
 |--------|------|
 | `1_fetch.py` | Download the science frames of an object or run, all bias / dark / flat candidates of these runs and of neighbouring runs (`calib_window_days`), and metadata of other lights in that window. Science exposures without matching darks, and setups without bias, get frames from the archive's dark / bias finder (`use_dark_finder`, `finder_kinds`, needs a login). Content-addressed cache, checksums verified. Works also on a local directory tree (`local_directory`). |
 | `2_classify_and_group.py` | Frame types from image statistics, electronic setups, targets by sky position, camera orientation (archive WCS or local ASTAP), mount sessions, flat probabilities, reduction units. Writes `calibration_plan.yaml`, `calibration_groups.ecsv`, `missing_calibrations.ecsv` and timeline plots. Lights without complete calibration are marked incomplete. |
-| `3_reduce_and_stack.py` | Masters per calibration group, lights per unit, then per target: quality selection, registration onto one grid, weighted stack per camera and filter over all nights; optional camera combination. |
+| `3_reduce_and_stack.py` | Masters per calibration group, lights per unit, then per target: quality selection (same parameter block as `astro_imaging/1_reduce_and_stack.py`, per target × camera × filter), registration onto one grid, weighted stack per camera and filter over all nights; optional camera combination. |
+| `4_restack.py` (optional) | Re-stack the registered frames (`keep_aligned_lights = True` in step 3) with another selection / weighting, without reducing and registering again. Frames rejected in step 3 can be brought back only if step 3 ran with `align_rejected = True`. |
 
 ```bash
 export OST_ARCHIVE_USER=...        # or answer the prompt
@@ -20,6 +21,9 @@ python 2_classify_and_group.py
 # check grouping_report.txt and diagnostics/calibration_groups/*.pdf,
 # correct the 'overrides' block in calibration_plan.yaml if needed, re-run step 2
 python 3_reduce_and_stack.py
+# optional: look at stacks/<target>/diagnostics/frame_quality/*.pdf, adjust the
+# selection in 4_restack.py and compare the stacks in output/restack/
+python 4_restack.py
 ```
 
 ## Concept
