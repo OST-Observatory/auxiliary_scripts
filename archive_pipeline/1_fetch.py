@@ -71,6 +71,10 @@ dark_exptime_tolerance_fraction: float = 0.05
 #   their metadata is needed for the grouping.
 download_context: bool = False
 
+#   Seconds to wait for one archive answer. Slow file listings are also
+#   requested again with smaller pages automatically.
+archive_timeout: float = 120.0
+
 #   Archive URL.
 archive_url: str = "https://polaris.astro.physik.uni-potsdam.de/data_archive"
 
@@ -129,7 +133,7 @@ if __name__ == "__main__":
                 f"{style.Bcolors.FAIL}Set exactly one of object_name or run_name "
                 f"(or local_directory).{style.Bcolors.ENDC}"
             )
-        client = ArchiveClient(archive_url, log=_log)
+        client = ArchiveClient(archive_url, timeout=archive_timeout, log=_log)
         if not anonymous:
             client.login()
             _log(f"Logged in as {client.username}")
