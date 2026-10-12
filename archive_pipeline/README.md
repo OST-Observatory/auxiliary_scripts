@@ -1,9 +1,10 @@
 # Archive pipeline: fetch, group, reduce, stack
 
-Three scripts that take an object or an observation run from the
+Scripts that take an object or an observation run from the
 [OST data archive](https://polaris.astro.physik.uni-potsdam.de/data_archive/),
 work out which calibration frames belong to which science frames, reduce
-everything with the right masters and stack every target.
+everything with the right masters, stack every target and, optionally,
+re-stack and compose colour images.
 
 Needs `ost_photometry` ≥ 0.6 and ASTAP (`astap_cli`) for plate solving.
 
@@ -13,6 +14,7 @@ Needs `ost_photometry` ≥ 0.6 and ASTAP (`astap_cli`) for plate solving.
 | `2_classify_and_group.py` | Frame types from image statistics, electronic setups, targets by sky position, camera orientation (archive WCS or local ASTAP), mount sessions, flat probabilities, reduction units. Writes `calibration_plan.yaml`, `calibration_groups.ecsv`, `missing_calibrations.ecsv` and timeline plots. Lights without complete calibration are marked incomplete. |
 | `3_reduce_and_stack.py` | Masters per calibration group, lights per unit, then per target: quality selection (same parameter block as `astro_imaging/1_reduce_and_stack.py`, per target × camera × filter), registration onto one grid, weighted stack per camera and filter over all nights; optional camera combination. |
 | `4_restack.py` (optional) | Re-stack the registered frames (`keep_aligned_lights = True` in step 3) with another selection / weighting, without reducing and registering again. Frames rejected in step 3 can be brought back only if step 3 ran with `align_rejected = True`. |
+| `5_color_composite.py` (optional) | Colour image per target from the stacks of step 3 or 4 (`source`): palettes `rgb`, `lrgb`, `sho`, `hoo`, `custom` or `auto`, camera combination or one image per camera; same processing options as `astro_imaging/3_color_composite.py`. Writes `color/<target>/<target>_<palette>.tif / .png / .jpg`. |
 
 ```bash
 export OST_ARCHIVE_USER=...        # or answer the prompt
@@ -24,6 +26,8 @@ python 3_reduce_and_stack.py
 # optional: look at stacks/<target>/diagnostics/frame_quality/*.pdf, adjust the
 # selection in 4_restack.py and compare the stacks in output/restack/
 python 4_restack.py
+# optional: colour images per target (from stacks/ or restack/)
+python 5_color_composite.py
 ```
 
 ## Concept
@@ -106,6 +110,7 @@ Edit, then run `2_classify_and_group.py` again (plate solutions are cached).
 | `<output>/masters/`, `<output>/reduced/<unit>/` | masters and reduced lights (e-/s) |
 | `<output>/stacks/<target>/<camera>/combined_filter_<F>.fit` | stacks |
 | `<output>/stacks/summary.ecsv` | targets, cameras, filters, frames, exposure |
+| `<output>/color/<target>/` | colour images of step 5 (16-bit TIFF, PNG, JPEG) |
 
 ## Limits
 
