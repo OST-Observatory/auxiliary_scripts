@@ -114,10 +114,6 @@ multi = 5.
 #   DAO grouper options
 multi_grouper = 2.0
 
-#   Remove objects with negative flux uncertainties
-strict_cleaning = True
-#strict_cleaning = False
-
 
 ###
 #   ePSF options
@@ -275,7 +271,6 @@ if __name__ == '__main__':
         multi_start=multi_start,
         multi=multi,
         multi_grouper=multi_grouper,
-        strict_cleaning=strict_cleaning,
         oversampling=oversampling,
         maxiters=maxiters,
         size_epsf=size_epsf,
