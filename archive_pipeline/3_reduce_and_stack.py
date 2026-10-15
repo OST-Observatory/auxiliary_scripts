@@ -51,10 +51,13 @@ targets: list[str] | None = None
 rm_cosmic_rays: bool | str = "auto"
 cosmic_ray_auto_min_frames: int = 7
 
-#   Gain and read noise: "catalog" (header / camera catalog, read noise
-#   scaled to the binned pixel) or "measured" (per electronic setup from bias
-#   and flat pairs; falls back to the catalog where that is not possible).
-camera_noise_source: str = "catalog"
+#   Gain and read noise: "auto" (measured per electronic setup where the
+#   header does not name the readout mode, e.g. MaxIm DL "Fast" / "Normal",
+#   else catalog), "catalog" (header / camera catalog, read noise scaled to
+#   the binned pixel) or "measured" (per electronic setup from bias and flat
+#   pairs; falls back to the OST measurements / catalog where that is not
+#   possible).
+camera_noise_source: str = "auto"
 # camera_noise_source: str = "measured"
 
 #   How the camera bins, for the catalog read noise: "auto" (camera
