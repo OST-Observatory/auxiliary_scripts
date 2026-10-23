@@ -41,8 +41,11 @@ Calibration and stacking use different groupings.
 | Flat group | camera, binning, filter, mount session | flats |
 | Target | cluster of field centres (not the `OBJECT` name) | reference frame, selection, stack |
 
-Calibration runs per **reduction unit** (mount session × electronic setup):
-all targets of a night share the same masters. Stacking runs per **target ×
+Calibration runs per **reduction unit** (mount session × night × electronic
+setup): all targets of a night share the same masters. When the camera stays
+mounted for weeks, one session spans many nights; every night still gets its
+own darks and the flat set nearest in time among the best (certain / likely)
+candidates. Stacking runs per **target ×
 camera × filter** over all sessions and nights in which the target appears.
 All filters and cameras of a target are registered onto one grid.
 
