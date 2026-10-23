@@ -67,7 +67,12 @@ cosmetic_correction: bool = True
 #   Remove large-scale gradients (moon, light pollution, flat residuals):
 #   "polynomial" (smooth 2-D polynomial of ``gradient_degree``, robust next
 #   to large galaxies / nebulae) or "background2d" (follows smaller
-#   structures; use ``gradient_box`` larger than the objects).
+#   structures; ``gradient_box`` in pixels, default 1/8 of the shorter side).
+#   Rings and blotches from flats that do not quite match: "background2d"
+#   with ``gradient_box`` about 1/12 of the shorter side (e.g. 177 for
+#   3192 x 2129). Stars and objects are masked; under a large object the
+#   sky is interpolated, so a faint halo can remain there. Better flats
+#   (same night, same camera position) remove the cause.
 remove_gradient: bool = False
 gradient_method: str = "polynomial"
 gradient_degree: int = 2
