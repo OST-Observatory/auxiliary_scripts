@@ -73,6 +73,19 @@ read_noise: float | None = None
 #   Reuse masters of a previous run.
 reuse_masters: bool = True
 
+#   Illumination (sky flat) correction: a smooth map per flat master, filter, camera and binning built from
+#   the reduced lights themselves (stars and objects masked) divides those
+#   lights before alignment. Removes rings and blotches of flats whose light
+#   source is not even (e.g. daylight flats). Needs at least
+#   ``illumination_min_frames`` lights per group; best with several nights
+#   or pointings. Faint nebulosity that sits at the same place in every
+#   frame and is too faint to be masked is flattened too. It acts like a
+#   flat (star fluxes change with the sky), so it also helps photometry
+#   when the pattern is a flat error; check the maps (PNG next to the FITS
+#   in output/masters/illumination). Off by default.
+illumination_correction: bool = False
+illumination_min_frames: int = 10
+
 #   Lights the plan marks 'incomplete' (darks or flats missing) are skipped.
 #   True reduces them anyway; to release single units use
 #   overrides.force_units in calibration_plan.yaml and rerun step 2.
@@ -232,6 +245,8 @@ if __name__ == "__main__":
             reuse_masters=reuse_masters,
             storage_dtype=storage_dtype,
             reduce_incomplete=reduce_incomplete,
+            illumination_correction=illumination_correction,
+            illumination_min_frames=illumination_min_frames,
         ),
         log=lambda text: print("   " + text, flush=True),
     )

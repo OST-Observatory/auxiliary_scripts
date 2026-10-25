@@ -63,6 +63,7 @@ Frames without any stars (clouds) are rejected as soon as a criterion is set.
 | `aligned_lights/` | Registered frames (only with `keep_aligned_lights = True`); input for `2_restack.py` or Siril drizzle. Header `FRMWGHT`, `FWHM`, `NSTARS`, … |
 | `diagnostics/frame_quality/frame_quality_<F>.pdf` | FWHM, roundness, stars, sky per frame; rejected = red ×, reference = star, not aligned = hollow. |
 | `restack/` | Stacks, `frame_quality_restack.ecsv` and plots from `2_restack.py`. |
+| `illumination/` | With `illumination_correction = True`: one illumination (sky flat) map per filter, `ILLUM_<filter>_<camera>_<binning>.fits` plus PNG. The reduced lights were divided by it before alignment (header `ILLUMCOR`). Removes rings and blotches of unevenly lit flats; see `docs/ARCHIVE_PIPELINE.md` of ost_photometry, section "Illumination correction", for method and limits. |
 
 ## Not included (on purpose)
 

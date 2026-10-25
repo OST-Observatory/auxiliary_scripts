@@ -106,6 +106,19 @@ temperature_tolerance: float = 5.0
 #   Number of cores used for multiprocessing (``None`` = half the CPUs)
 n_cores_multiprocessing: int | None = None
 
+#   Illumination (sky flat) correction: a smooth map per filter, camera and binning built from
+#   the reduced lights themselves (stars and objects masked) divides those
+#   lights before alignment. Removes rings and blotches of flats whose light
+#   source is not even (e.g. daylight flats). Needs at least
+#   ``illumination_min_frames`` lights per group; best with several nights
+#   or pointings. Faint nebulosity that sits at the same place in every
+#   frame and is too faint to be masked is flattened too. It acts like a
+#   flat (star fluxes change with the sky), so it also helps photometry
+#   when the pattern is a flat error; check the maps (PNG next to the FITS
+#   in <output_dir>/illumination). Off by default.
+illumination_correction: bool = False
+illumination_min_frames: int = 10
+
 #   Alignment backend. ``aa_true`` (astroalign similarity: shift, rotation,
 #   scale; sub-pixel) is the imaging default. ``wcs`` reprojects onto the
 #   sky grid of the reference and is the fallback for large dithers, sparse
@@ -297,6 +310,8 @@ if __name__ == "__main__":
         reference_image_index=reference_image_index,
         keep_aligned_lights=keep_aligned_lights,
         storage_dtype=storage_dtype,
+        illumination_correction=illumination_correction,
+        illumination_min_frames=illumination_min_frames,
         #   WCS on the stacks only
         find_wcs=find_wcs,
         wcs_method=wcs_method,
