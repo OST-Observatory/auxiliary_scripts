@@ -106,6 +106,16 @@ highlight_percentile: float = 99.995
 #   Colour saturation (1 = unchanged).
 saturation: float = 1.0
 
+#   Green noise removal (SCNR, as Siril "Remove Green Noise"): ``None`` (off),
+#   "average_neutral" (Siril default, G = min(G, (R+B)/2)), "maximum_neutral",
+#   "maximum_mask" or "additive_mask" (the mask methods use
+#   ``green_noise_amount`` 0 ... 1). ``green_noise_preserve_lightness`` keeps
+#   the brightness. Removes green casts and green noise in RGB images; in
+#   SHO / HOO images (Halpha in green) it turns green into gold.
+green_noise_removal: str | None = None
+green_noise_amount: float = 1.0
+green_noise_preserve_lightness: bool = True
+
 ############################################################################
 #                                  Output                                  #
 ############################################################################
@@ -153,6 +163,8 @@ def color_settings() -> ColorSettings:
         stretch=stretch, linked_stretch=linked_stretch,
         target_background=target_background, shadows_sigma=shadows_sigma,
         highlight_percentile=highlight_percentile, saturation=saturation,
+        green_noise_removal=green_noise_removal, green_noise_amount=green_noise_amount,
+        green_noise_preserve_lightness=green_noise_preserve_lightness,
     )
 
 
