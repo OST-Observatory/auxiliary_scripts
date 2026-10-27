@@ -49,8 +49,18 @@ custom_mix: dict | None = None
 #     "G": {"V": 1.0},
 #     "B": {"B": 1.0},
 # }
-#   Luminance filter for palette = "custom" (e.g. "Clear"); ``None`` = none.
-luminance: str | None = None
+#   Luminance (any palette; LRGB uses Clear by default): a filter, e.g.
+#   "Clear", or a weighted mix of filters. "RGB" stands for the colour
+#   channels themselves (synthetic luminance). Every component is scaled to
+#   the same sky noise before mixing, so the weights are shares of the
+#   signal-to-noise (Halpha with 0.3 adds visible nebula detail although it
+#   is much fainter than Clear). ``None`` = the palette's own.
+luminance: str | dict | None = None
+# luminance: str | dict | None = {"Clear": 0.7, "Ha": 0.3}
+# luminance: str | dict | None = {"Clear": 0.5, "RGB": 0.5}
+#   How strongly the luminance replaces the brightness of the colour image:
+#   1 = fully (classic LRGB), 0.5 = half luminance, half colour channels.
+luminance_weight: float = 1.0
 
 ############################################################################
 #                               Processing                                 #
@@ -154,6 +164,7 @@ from ost_photometry.archive.cache import safe_name
 def color_settings() -> ColorSettings:
     return ColorSettings(
         palette=palette, custom_mix=custom_mix, luminance=luminance,
+        luminance_weight=luminance_weight,
         neutralize_background=neutralize_background,
         crop_to_common_field=crop_to_common_field,
         cosmetic_correction=cosmetic_correction,
