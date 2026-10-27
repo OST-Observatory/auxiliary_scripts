@@ -94,7 +94,7 @@ from astropy import log
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import style, terminal_output
 from ost_photometry.reduce.grouping.plan import load_plan
 from ost_photometry.reduce.workflow.combine import StackSettings, restack_planned
 
@@ -137,6 +137,7 @@ if __name__ == "__main__":
             f"{style.Bcolors.FAIL}No {out / 'stacks'}. Run 3_reduce_and_stack.py first "
             f"(with keep_aligned_lights = True).{style.Bcolors.ENDC}"
         )
+    terminal_output.print_header("Archive pipeline 4/5: restack")
     plan = load_plan(work / "calibration_plan.yaml")
 
     summary = restack_planned(
@@ -152,11 +153,13 @@ if __name__ == "__main__":
             dtype=dtype,
         ),
         targets=targets,
-        log=lambda text: print("   " + text, flush=True),
+        log=lambda text: terminal_output.print_auto(text, indent=2),
     )
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
+    terminal_output.print_section("Stacks")
     for row in summary:
-        print(f"   {row['target_name']:20s} {row['camera']:12s} {row['filter']:8s} "
-              f"{row['n_images']:4d} frames {row['exposure_s'] / 60:7.1f} min  {row['path']}")
-    print(f"   Summary: {target_dir / 'summary.ecsv'}")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+        terminal_output.print_to_terminal(
+            f"{row['target_name']:20s} {row['camera']:12s} {row['filter']:8s} "
+            f"{row['n_images']:4d} frames {row['exposure_s'] / 60:7.1f} min  {row['path']}",
+            indent=2, style_name="NORMAL")
+    terminal_output.print_done(start_time, {"Summary": target_dir / "summary.ecsv"},
+                               "5_color_composite.py (source = \"restack\")")

@@ -103,7 +103,7 @@ from astropy import log
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import style, terminal_output
 from ost_photometry.archive import read_manifest
 from ost_photometry.reduce.grouping.plan import (
     PlanSettings,
@@ -120,12 +120,9 @@ from ost_photometry.reduce.grouping.plots import plot_night_timelines
 ############################################################################
 
 
-def _progress(i: int, n: int, name: str) -> None:
-    print(f"   [{i}/{n}] plate solving {name}", flush=True)
-
-
 if __name__ == "__main__":
     start_time = time.time()
+    terminal_output.print_header("Archive pipeline 2/5: classify and group")
     work = Path(workspace).expanduser()
     manifest_path = work / "manifest.ecsv"
     if not manifest_path.is_file():
@@ -155,8 +152,8 @@ if __name__ == "__main__":
         work_dir=work,
         settings=settings,
         overrides=overrides,
-        progress=_progress,
-        log=lambda text: print("   " + text, flush=True),
+        progress=terminal_output.progress_callback("plate solving"),
+        log=lambda text: terminal_output.print_auto(text, indent=2),
     )
     write_plan(plan, plan_path)
     write_frames(plan, work / "calibration_groups.ecsv")
@@ -175,12 +172,11 @@ if __name__ == "__main__":
                 f" for {row['needed_for']}"
             )
     (work / "grouping_report.txt").write_text("\n".join(plan.report) + "\n")
-    for line in plan.report:
-        print("   " + line)
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print(f"   Plan:      {plan_path}  (edit 'overrides', then run this script again)")
-    print(f"   Frames:    {work / 'calibration_groups.ecsv'}")
-    print(f"   Missing:   {work / 'missing_calibrations.ecsv'}  ({len(missing)} series to take)")
-    print(f"   Timelines: {len(plots)} PDF(s) in {work / 'diagnostics' / 'calibration_groups'}")
-    print("   Next: 3_reduce_and_stack.py")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_section("Calibration plan")
+    terminal_output.print_report(plan.report, indent=2)
+    terminal_output.print_done(start_time, {
+        "Plan": f"{plan_path}  (edit 'overrides', then run this script again)",
+        "Frames": work / "calibration_groups.ecsv",
+        "Missing": f"{work / 'missing_calibrations.ecsv'}  ({len(missing)} series to take)",
+        "Timelines": f"{len(plots)} PDF(s) in {work / 'diagnostics' / 'calibration_groups'}",
+    }, "3_reduce_and_stack.py")

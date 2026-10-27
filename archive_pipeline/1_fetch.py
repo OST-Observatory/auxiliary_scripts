@@ -97,7 +97,7 @@ from astropy import log
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import style, terminal_output
 from ost_photometry.archive import (
     ArchiveClient,
     fetch_dataset,
@@ -111,16 +111,12 @@ from ost_photometry.archive import (
 
 
 def _log(text: str) -> None:
-    print(f"   {text}", flush=True)
-
-
-def _progress(i: int, n: int, name: str) -> None:
-    if i == 1 or i == n or i % 25 == 0:
-        print(f"   [{i}/{n}] {name}", flush=True)
+    terminal_output.print_auto(text, indent=2)
 
 
 if __name__ == "__main__":
     start_time = time.time()
+    terminal_output.print_header("Archive pipeline 1/5: fetch frames")
     work = Path(workspace).expanduser()
     work.mkdir(parents=True, exist_ok=True)
 
@@ -133,6 +129,7 @@ if __name__ == "__main__":
                 f"{style.Bcolors.FAIL}Set exactly one of object_name or run_name "
                 f"(or local_directory).{style.Bcolors.ENDC}"
             )
+        terminal_output.print_section("Archive query")
         client = ArchiveClient(archive_url, timeout=archive_timeout, log=_log)
         if not anonymous:
             client.login()
@@ -149,7 +146,7 @@ if __name__ == "__main__":
             finder_kinds=finder_kinds,
             exptime_tolerance=dark_exptime_tolerance,
             exptime_tolerance_fraction=dark_exptime_tolerance_fraction,
-            progress=_progress,
+            progress=terminal_output.progress_callback("files"),
             log=_log,
         )
         report_lines = report.lines()
@@ -157,9 +154,6 @@ if __name__ == "__main__":
 
     path = write_manifest(manifest, work / "manifest.ecsv")
     (work / "fetch_report.txt").write_text("\n".join(report_lines) + "\n")
-    for line in report_lines:
-        print("   " + line)
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print(f"   Manifest: {path}")
-    print("   Next: 2_classify_and_group.py")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_section("Summary")
+    terminal_output.print_report(report_lines, indent=2)
+    terminal_output.print_done(start_time, {"Manifest": path}, "2_classify_and_group.py")

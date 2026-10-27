@@ -124,3 +124,15 @@ Edit, then run `2_classify_and_group.py` again (plate solutions are cached).
 - Nights without solvable lights give unverified sessions; flat assignment
   then relies on time, dust and camera changes only.
 - Mount sessions are not written back to the archive.
+
+## Terminal output
+
+Every script starts with a title, then one blue line per step with the
+details indented below it; problems (missing darks, incomplete units,
+retries) are yellow, results green. Progress bars start below the line they
+belong to. Messages for every single frame (plate solving, WCS shift of each
+aligned frame) are hidden; set `OST_PHOTOMETRY_VERBOSE=1` to see them:
+
+```
+OST_PHOTOMETRY_VERBOSE=1 python 3_reduce_and_stack.py
+```

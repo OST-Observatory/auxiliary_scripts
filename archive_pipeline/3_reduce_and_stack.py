@@ -189,7 +189,7 @@ log.setLevel("ERROR")
 
 from astropy.table import Table
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.reduce.grouping.plan import load_plan
 from ost_photometry.reduce.workflow.combine import StackSettings, stack_planned
 from ost_photometry.reduce.workflow.groups import ReductionSettings, reduce_planned
@@ -229,6 +229,8 @@ if __name__ == "__main__":
     out = Path(output_dir).expanduser()
     plan = load_plan(work / "calibration_plan.yaml")
     frames = Table.read(work / "calibration_groups.ecsv", format="ascii.ecsv")
+    terminal_output.print_header("Archive pipeline 3/5: reduce and stack")
+    terminal_output.print_section("Masters and reduction")
 
     reports, reduction = reduce_planned(
         plan,
@@ -248,11 +250,16 @@ if __name__ == "__main__":
             illumination_correction=illumination_correction,
             illumination_min_frames=illumination_min_frames,
         ),
-        log=lambda text: print("   " + text, flush=True),
+        log=lambda text: terminal_output.print_auto(text, indent=2),
     )
-    for unit_id, report in reports.items():
-        for note in dict.fromkeys(report.notes):
-            print(f"   {unit_id}: {note}")
+    notes = [(unit_id, note) for unit_id, report in reports.items()
+             for note in dict.fromkeys(report.notes)]
+    if notes:
+        terminal_output.print_section("Notes of the reduction units")
+        for unit_id, note in notes:
+            terminal_output.print_auto(f"{unit_id}: {note}", indent=2)
+
+    terminal_output.print_section("Registration and stacking")
 
     summary = stack_planned(
         plan,
@@ -272,13 +279,15 @@ if __name__ == "__main__":
             n_cores_multiprocessing=n_cores_multiprocessing,
         ),
         targets=targets,
-        log=lambda text: print("   " + text, flush=True),
+        log=lambda text: terminal_output.print_auto(text, indent=2),
     )
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
+    terminal_output.print_section("Stacks")
     for row in summary:
-        print(f"   {row['target_name']:20s} {row['camera']:12s} {row['filter']:8s} "
-              f"{row['n_images']:4d} frames {row['exposure_s'] / 60:7.1f} min  {row['path']}")
-    print(f"   Summary: {out / 'stacks' / 'summary.ecsv'}")
-    if keep_aligned_lights:
-        print("   Next (optional): 4_restack.py with another selection / weighting")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+        terminal_output.print_to_terminal(
+            f"{row['target_name']:20s} {row['camera']:12s} {row['filter']:8s} "
+            f"{row['n_images']:4d} frames {row['exposure_s'] / 60:7.1f} min  {row['path']}",
+            indent=2, style_name="NORMAL")
+    terminal_output.print_done(
+        start_time, {"Summary": out / "stacks" / "summary.ecsv"},
+        "4_restack.py (optional, other selection / weighting) or 5_color_composite.py"
+        if keep_aligned_lights else "5_color_composite.py")

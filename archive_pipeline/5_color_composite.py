@@ -119,7 +119,7 @@ from astropy.table import Table
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import style, terminal_output
 from ost_photometry.archive.cache import safe_name
 from ost_photometry.imaging import (
     ColorSettings,
@@ -160,6 +160,7 @@ if __name__ == "__main__":
         raise SystemExit(f"{style.Bcolors.FAIL}No {summary_path}. Run "
                          f"{'3_reduce_and_stack.py' if source == 'stacks' else '4_restack.py'}"
                          f" first.{style.Bcolors.ENDC}")
+    terminal_output.print_header("Archive pipeline 5/5: colour images")
     summary = Table.read(summary_path, format="ascii.ecsv")
     wanted = {t.lower().replace(" ", "") for t in targets} if targets else None
     settings = color_settings()
@@ -173,10 +174,11 @@ if __name__ == "__main__":
         if wanted and stack_set.target.lower().replace(" ", "") not in wanted:
             continue
         label = f"{stack_set.target} ({stack_set.camera})"
+        terminal_output.print_section(label)
         try:
             result = compose(stack_set.stacks, settings)
         except ValueError as exc:
-            print(f"   {label}: skipped - {exc}")
+            terminal_output.print_to_terminal(f"skipped: {exc}", indent=2, style_name="WARNING")
             continue
         # camera in the name only when the target has images of several cameras
         suffix = f"_{stack_set.camera}" if per_target[stack_set.target] > 1 else ""
@@ -185,12 +187,11 @@ if __name__ == "__main__":
         files = write_images(result, base, formats=formats)
         written.extend(files)
         factors = ", ".join(f"{k} {v:.2f}" for k, v in result.log["channel_factors"].items())
-        print(f"   {label}: {result.palette.name} from {', '.join(sorted(stack_set.stacks))}"
-              f"; factors {factors}")
+        terminal_output.print_to_terminal(
+            f"{result.palette.name} from {', '.join(sorted(stack_set.stacks))}; factors {factors}",
+            indent=2, style_name="NORMAL")
         if "hint" in result.log:
-            print(f"      hint: {result.log['hint']}")
+            terminal_output.print_to_terminal(f"hint: {result.log['hint']}", indent=2,
+                                              style_name="WARNING")
 
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    for path in written:
-        print(f"   Image: {path}")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_done(start_time, {f"Image {k + 1}": p for k, p in enumerate(written)})
