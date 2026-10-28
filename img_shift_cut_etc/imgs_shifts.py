@@ -81,8 +81,8 @@ id_img: int = 10
 ####                            Libraries                               ####
 ############################################################################
 
-import sys
 import os
+import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -92,7 +92,7 @@ from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
 from skimage.io import (imread, imread_collection, imsave, imshow)
 
-from ost_photometry import checks
+from ost_photometry import checks, terminal_output
 import ost_photometry.utilities as utilities_base
 from ost_photometry.reduce import utilities
 
@@ -104,11 +104,14 @@ import rawpy
 ####                               Main                                 ####
 ############################################################################
 
+start_time = time.time()
+terminal_output.print_header("Shift and cut images")
+
 #   Check if output directory exists
 checks.check_output_directories(path_output)
 
 #   Make file list
-sys.stdout.write("\rRead images...\n")
+terminal_output.print_section("Read images")
 fileList, nfiles = utilities_base.mk_file_list(
     path_images,
     formats=formats,
@@ -120,10 +123,9 @@ fileList, nfiles = utilities_base.mk_file_list(
 #   Read images
 if ".CR2" in formats:
     im = []
+    bar = terminal_output.progress_bar(nfiles, desc="Read")
     for i, filename in enumerate(fileList):
-        id_c = i+1
-        sys.stdout.write("\rImage %i/%i" % (id_c, nfiles))
-        sys.stdout.flush()
+        bar.update(1)
 
         buffered_image = rawpy.imread(filename)
         rgb = buffered_image.postprocess()
@@ -136,14 +138,13 @@ if ".CR2" in formats:
             #buffered_image
             #)
         #im.append(numpy.array(image))
-
-    sys.stdout.write("\n")
+    bar.close()
 
 else:
     im = imread_collection(fileList)
 
 #print(im)
-print(im[0].shape)
+terminal_output.print_to_terminal(f"{nfiles} images, shape {im[0].shape}", indent=2)
 
 #   Image shape
 image_shape = im[0].shape
@@ -156,9 +157,10 @@ if im[0].dtype == 'uint8':
 elif im[0].dtype == 'uint16':
     bit_depth = 16
 else:
-    print('Caution: Bit depth could not be determined.')
-    print('Data type is ', im[0].dtype)
-    print('Bit depth set to 8')
+    terminal_output.print_to_terminal(
+        f"Caution: Bit depth could not be determined (data type {im[0].dtype}). "
+        "Bit depth set to 8.",
+        indent=2, style_name="WARNING")
     bit_depth = 8
 
 
@@ -167,7 +169,7 @@ else:
 #                           while calculating the shifts
 mask = np.ones((ny,nx), dtype=bool)
 if bool_mask:
-    sys.stdout.write("\rCalculate image mask...\n")
+    terminal_output.print_to_terminal("Calculate image mask...", indent=2)
     if upper_right:
         mask_points.append([0,nx])
     if lower_right:
@@ -186,12 +188,11 @@ if bool_mask:
 shifts = np.zeros((2,nfiles), dtype=int)
 
 #   Loop over number of files
-sys.stdout.write("\rCalculate shifts...\n")
+terminal_output.print_section("Calculate shifts")
+bar = terminal_output.progress_bar(nfiles, desc="Shifts")
 for i in range(0, nfiles):
     #   Write current status
-    id_c = i+1
-    sys.stdout.write("\rImage %i/%i" % (id_c, nfiles))
-    sys.stdout.flush()
+    bar.update(1)
 
     #   "Normalize" image & calculate heaviside function for the image
     if bool_heavyside:
@@ -223,9 +224,7 @@ for i in range(0, nfiles):
         ax2.set_title('Image mask')
 
         plt.show()
-
-
-sys.stdout.write("\n")
+bar.close()
 
 #   Ensure shifts are Integer and that they have the right sign
 shifts = shifts.astype(int)*-1
@@ -235,11 +234,11 @@ shifts = shifts.astype(int)*-1
 #   Cut pictures and add them
 #
 img_cut = {}
+terminal_output.print_section("Apply shifts and cut")
+bar = terminal_output.progress_bar(nfiles, desc="Cut")
 for i in range(0,nfiles):
     #   Write status to console
-    id_c = i+1
-    sys.stdout.write("\rApply shift to image %i/%i" % (id_c, nfiles))
-    sys.stdout.flush()
+    bar.update(1)
 
     xs, xe, ys, ye =  utilities.make_index_from_shifts(
         shifts,
@@ -271,9 +270,9 @@ for i in range(0,nfiles):
 
     #new_name = 'shift_'+basename(fileList[i]).split('.')[0]
     #imsave(join('output/jpeg',new_name)+'.jpg', img_cut[i])
+bar.close()
 
-
-sys.stdout.write("\n")
+terminal_output.print_done(start_time, {"Output": path_output})
 
 
 

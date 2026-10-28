@@ -614,20 +614,24 @@ def compare_frames(
     ref, other = match_shapes(ref, other)
     ref = downsample_ccd(ref, downsample)
     other = downsample_ccd(other, downsample)
+    from ost_photometry import terminal_output
+
     scale = float(max(downsample, 1))
     results: list[MethodResult] = []
+    terminal_output.print_section("Registration methods")
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         for name in methods:
-            print(f"  {name} …", flush=True)
+            terminal_output.print_to_terminal(f"{name} …", indent=2)
             results.append(run_method(name, ref, other, tmp_path))
             if results[-1].error:
-                print(f"    failed: {results[-1].error}", flush=True)
+                terminal_output.print_to_terminal(
+                    f"failed: {results[-1].error}", indent=3, style_name="FAIL")
             else:
-                print(
-                    f"    Δx={results[-1].dx * scale:.3f}  "
+                terminal_output.print_to_terminal(
+                    f"Δx={results[-1].dx * scale:.3f}  "
                     f"Δy={results[-1].dy * scale:.3f} pix (original)",
-                    flush=True,
+                    indent=3, style_name="OKGREEN",
                 )
 
     ref_data = np.asarray(ref.data, dtype=float)
@@ -677,12 +681,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    import time
+
+    from ost_photometry import terminal_output
+
+    start_time = time.time()
     args = parse_args(argv)
     out = Path(args.out).expanduser()
     out.mkdir(parents=True, exist_ok=True)
+    terminal_output.print_header("Compare registration methods")
 
     if args.self_test:
-        print("Self-test: synthetic field, true shift Δx=-3.0, Δy=+2.5 pix")
+        terminal_output.print_to_terminal(
+            "Self-test: synthetic field, true shift Δx=-3.0, Δy=+2.5 pix", indent=1)
         ref, other = synthetic_pair((2.5, -3.0))
         compare_frames(
             ref,
@@ -692,19 +703,21 @@ def main(argv: list[str] | None = None) -> int:
             downsample=max(1, args.downsample),
             plot_format=args.plot_format,
         )
-        print(f"Wrote plots to {out}")
+        terminal_output.print_done(start_time, {"Plots": out})
         return 0
 
     if args.ref in {"?", ""} or args.other in {"?", ""}:
-        print("Set PATH_REFERENCE / PATH_OTHER in the script, or pass --ref and --other.")
+        terminal_output.print_to_terminal(
+            "Set PATH_REFERENCE / PATH_OTHER in the script, or pass --ref and --other.",
+            style_name="FAIL")
         return 2
 
     ref_path = Path(args.ref).expanduser()
     other_path = Path(args.other).expanduser()
     if args.reduce:
-        print(f"Reducing {ref_path} …")
+        terminal_output.print_section(f"Reducing {ref_path}")
         ref_dir = reduce_dataset(ref_path, out / "reduce_reference")
-        print(f"Reducing {other_path} …")
+        terminal_output.print_section(f"Reducing {other_path}")
         other_dir = reduce_dataset(other_path, out / "reduce_other")
         ref_fits = resolve_fits_path(ref_dir, args.ref_index)
         other_fits = resolve_fits_path(other_dir, args.other_index)
@@ -712,8 +725,9 @@ def main(argv: list[str] | None = None) -> int:
         ref_fits = resolve_fits_path(ref_path, args.ref_index)
         other_fits = resolve_fits_path(other_path, args.other_index)
 
-    print(f"Reference: {ref_fits}")
-    print(f"Other:     {other_fits}")
+    terminal_output.print_section("Frames")
+    terminal_output.print_to_terminal(f"Reference: {ref_fits}", indent=2)
+    terminal_output.print_to_terminal(f"Other:     {other_fits}", indent=2)
     ref = load_ccd(ref_fits)
     other = load_ccd(other_fits)
     compare_frames(
@@ -724,7 +738,7 @@ def main(argv: list[str] | None = None) -> int:
         downsample=max(1, args.downsample),
         plot_format=args.plot_format,
     )
-    print(f"Wrote plots to {out}")
+    terminal_output.print_done(start_time, {"Plots": out})
     return 0
 
 

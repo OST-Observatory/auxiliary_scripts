@@ -38,11 +38,12 @@ verbose: bool = True
 ############################################################################
 
 import sys
+import time
 import numpy as np
 from pathlib import Path
 import ccdproc as ccdp
 from astropy.io import fits
-from ost_photometry import checks
+from ost_photometry import checks, terminal_output
 
 ############################################################################
 ####                         Overscan Detection                        ####
@@ -196,11 +197,12 @@ def remove_overscan_with_bounds(image_data, row_bounds, col_bounds):
     result = image_data.copy()
     
     if verbose:
-        print(f"  Original shape: {original_shape}")
+        terminal_output.print_to_terminal(f"Original shape: {original_shape}", indent=3)
         if row_bounds:
-            print(f"  Removing row overscan: {row_bounds}")
+            terminal_output.print_to_terminal(f"Removing row overscan: {row_bounds}", indent=3)
         if col_bounds:
-            print(f"  Removing column overscan: {col_bounds}")
+            terminal_output.print_to_terminal(
+                f"Removing column overscan: {col_bounds}", indent=3)
     
     # Remove overscan regions
     if row_bounds:
@@ -224,7 +226,7 @@ def remove_overscan_with_bounds(image_data, row_bounds, col_bounds):
             result = result[:, :start]
     
     if verbose:
-        print(f"  Final shape: {result.shape}")
+        terminal_output.print_to_terminal(f"Final shape: {result.shape}", indent=3)
     
     return result
 
@@ -233,6 +235,9 @@ def remove_overscan_with_bounds(image_data, row_bounds, col_bounds):
 ############################################################################
 
 if __name__ == '__main__':
+    start_time = time.time()
+    terminal_output.print_header("Remove overscan")
+
     #   Check input and output directory
     file_path = checks.check_pathlib_path(image_path)
     checks.check_output_directories(output_directory)
@@ -250,21 +255,23 @@ if __name__ == '__main__':
     consistent_col_bounds = None
     
     #   Check if manual bounds are provided
+    terminal_output.print_section("Overscan bounds")
     if overscan_row is not None or overscan_column is not None:
-        if verbose:
-            print("Using manual overscan bounds:")
-            if overscan_row:
-                print(f"  Row overscan: {overscan_row}")
-            if overscan_column:
-                print(f"  Column overscan: {overscan_column}")
+        terminal_output.print_to_terminal("Using manual overscan bounds", indent=2)
+        if overscan_row:
+            terminal_output.print_to_terminal(f"Row overscan: {overscan_row}", indent=3)
+        if overscan_column:
+            terminal_output.print_to_terminal(f"Column overscan: {overscan_column}", indent=3)
         
         consistent_row_bounds = overscan_row
         consistent_col_bounds = overscan_column
         
     else:
         #   Automatic detection mode
-        if verbose:
-            print(f"Analyzing {total_files} images to determine consistent overscan bounds...")
+        terminal_output.print_to_terminal(
+            f"Analyzing {total_files} images to determine consistent overscan bounds...",
+            indent=2)
+        bar = None if verbose else terminal_output.progress_bar(total_files, desc="Analyze")
         
         #   First pass: analyze all images to determine consistent overscan bounds
         all_row_bounds = []
@@ -276,7 +283,9 @@ if __name__ == '__main__':
             ):
             
             if verbose:
-                print(f"Analyzing {file_name}")
+                terminal_output.print_to_terminal(f"Analyzing {file_name}", indent=3)
+            else:
+                bar.update(1)
             
             #   Detect overscan for this image
             row_bounds, col_bounds = detect_overscan_for_image(img.data)
@@ -285,6 +294,8 @@ if __name__ == '__main__':
                 all_row_bounds.append(row_bounds)
             if col_bounds:
                 all_col_bounds.append(col_bounds)
+        if bar is not None:
+            bar.close()
         
         #   Determine consistent bounds (use maximum range)
         if all_row_bounds:
@@ -293,8 +304,9 @@ if __name__ == '__main__':
             max_row_end = max(bounds[1] for bounds in all_row_bounds)
             consistent_row_bounds = (max_row_start, max_row_end)
             
-            if verbose:
-                print(f"Consistent row overscan bounds: {consistent_row_bounds}")
+            terminal_output.print_to_terminal(
+                f"Consistent row overscan bounds: {consistent_row_bounds}",
+                indent=2, style_name="OKGREEN")
         
         if all_col_bounds:
             # Find the maximum range for column overscan
@@ -302,16 +314,18 @@ if __name__ == '__main__':
             max_col_end = max(bounds[1] for bounds in all_col_bounds)
             consistent_col_bounds = (max_col_start, max_col_end)
             
-            if verbose:
-                print(f"Consistent column overscan bounds: {consistent_col_bounds}")
+            terminal_output.print_to_terminal(
+                f"Consistent column overscan bounds: {consistent_col_bounds}",
+                indent=2, style_name="OKGREEN")
     
     if not consistent_row_bounds and not consistent_col_bounds:
-        print("No overscan regions detected or specified!")
+        terminal_output.print_to_terminal(
+            "No overscan regions detected or specified!", indent=2, style_name="FAIL")
         sys.exit(1)
     
     #   Second pass: remove overscan using consistent bounds
-    if verbose:
-        print(f"\nRemoving overscan from all images using consistent bounds...")
+    terminal_output.print_section("Remove overscan from all images")
+    bar = None if verbose else terminal_output.progress_bar(total_files, desc="Remove")
     
     i = 0
     for img, file_name in ifc.ccds(
@@ -320,7 +334,8 @@ if __name__ == '__main__':
         ):
 
         if verbose:
-            print(f"Processing {file_name} ({i+1}/{total_files})")
+            terminal_output.print_to_terminal(
+                f"Processing {file_name} ({i+1}/{total_files})", indent=2)
         
         #   Remove overscan using consistent bounds
         img_data = img.data
@@ -351,12 +366,12 @@ if __name__ == '__main__':
 
         #   Write status to console
         i += 1
-        if not verbose:
-            sys.stdout.write(f"\rProcessed {i}/{total_files} images")
-            sys.stdout.flush()
+        if bar is not None:
+            bar.update(1)
     
-    if not verbose:
-        sys.stdout.write("\n")
-    else:
-        print(f"Completed! Processed {i} images.")
-        print(f"All images now have consistent dimensions: {cleaned_data.shape[1]}x{cleaned_data.shape[0]}") 
+    if bar is not None:
+        bar.close()
+    terminal_output.print_to_terminal(
+        f"{i} images processed, all {cleaned_data.shape[1]}x{cleaned_data.shape[0]}",
+        indent=2, style_name="OKGREEN")
+    terminal_output.print_done(start_time, {"Output": out_path}) 

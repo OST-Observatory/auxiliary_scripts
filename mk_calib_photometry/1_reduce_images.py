@@ -122,10 +122,12 @@ satlevel  = None
 ############################################################################
 
 import tempfile
+import time
 
 import warnings
 warnings.filterwarnings('ignore')
 
+from ost_photometry import terminal_output
 from ost_photometry.reduce import redu, utilities
 
 ############################################################################
@@ -133,6 +135,9 @@ from ost_photometry.reduce import redu, utilities
 ############################################################################
 
 if __name__ == '__main__':
+    start_time = time.time()
+    terminal_output.print_header("Calibration 1/3: reduce the images")
+
     ###
     #   Prepare directories and make checks
     #
@@ -172,3 +177,6 @@ if __name__ == '__main__':
         frame_selection=frame_selection,
         reference_image_selection=reference_image_selection,
     )
+
+    terminal_output.print_done(
+        start_time, {"Output": outdir}, "2_mk_trans.py (once per field)")

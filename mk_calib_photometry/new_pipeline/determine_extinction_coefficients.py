@@ -87,7 +87,7 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.analyze import analyze
 from ost_photometry.analyze.pipeline import PipelineConfig
 
@@ -98,6 +98,7 @@ from ost_photometry.analyze.pipeline import PipelineConfig
 if __name__ == "__main__":
     #   Set start time
     start_time = time.time()
+    terminal_output.print_header(f"Extinction coefficients ({name})")
 
     #   Prepare variable lists and dictionaries from the individual
     #   definitions above
@@ -142,14 +143,17 @@ if __name__ == "__main__":
     if out_path.exists():
         with open(out_path) as f:
             coeffs = json.load(f)
-        print(style.Bcolors.OKGREEN + "   Extinction coefficients:" + style.Bcolors.ENDC)
+        terminal_output.print_section("Extinction coefficients")
         for filt, c in coeffs.items():
             k = c.get("k_prime", "?")
             e = c.get("k_prime_err", "?")
-            print(f"     {filt}: k' = {k} ± {e} mag/airmass")
+            terminal_output.print_to_terminal(
+                f"{filt}: k' = {k} ± {e} mag/airmass", indent=2, style_name="OKGREEN")
+    else:
+        terminal_output.print_to_terminal(
+            f"No extinction coefficients written ({out_path})", style_name="WARNING")
 
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_done(start_time, {"Coefficients": out_path})
 
 """
     Change Log

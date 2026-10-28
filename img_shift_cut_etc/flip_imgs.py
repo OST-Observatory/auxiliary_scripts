@@ -22,25 +22,28 @@ formats: list[str] = [".tiff", ".TIFF"]
 ####                            Libraries                               ####
 ############################################################################
 
-import sys
-
 import os
+
+import time
 
 import numpy as np
 
 from tifffile import (imread, imsave)
 
-from ost_photometry import checks, utilities
+from ost_photometry import checks, terminal_output, utilities
 
 ############################################################################
 ####                               Main                                 ####
 ############################################################################
 
+start_time = time.time()
+terminal_output.print_header("Flip images")
+
 #   Check if output directory exists
 checks.check_output_directories(output_directory)
 
 #   Make file list
-sys.stdout.write("\rRead images...\n")
+terminal_output.print_to_terminal("Read images...")
 fileList, n_files = utilities.mk_file_list(
     image_path,
     formats=formats,
@@ -55,6 +58,7 @@ im = np.flip(im, axis=1)
 im = np.flip(im, axis=2)
 
 #   Write images to the output directory
+bar = terminal_output.progress_bar(n_files, desc="Flip")
 for i in range(0, n_files):
     #   Extract file name
     new_name = os.path.basename(fileList[i])
@@ -62,10 +66,9 @@ for i in range(0, n_files):
     #   Write images
     imsave(os.path.join('flip_imgs_test',new_name), im[i])
 
-    #   Write status to console
-    id_img = i+1
-    sys.stdout.write("\rFlip image %i" % id_img)
-    sys.stdout.flush()
-sys.stdout.write("\n")
+    bar.update(1)
+bar.close()
+
+terminal_output.print_done(start_time, {"Output": 'flip_imgs_test'})
 
 

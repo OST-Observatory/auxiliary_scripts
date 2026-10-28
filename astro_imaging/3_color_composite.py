@@ -147,7 +147,7 @@ from astropy.io import fits
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.imaging import (
     ColorSettings,
     compose,
@@ -181,28 +181,35 @@ def color_settings() -> ColorSettings:
 
 if __name__ == "__main__":
     start_time = time.time()
+    terminal_output.print_header("Astro imaging 3/3: colour composite")
     source = Path(stacks_dir).expanduser()
     stacks = stacks_from_directory(source)
     if not stacks:
-        raise SystemExit(f"{style.Bcolors.FAIL}No combined_filter_*.fit in {source}. "
-                         f"Run 1_reduce_and_stack.py first.{style.Bcolors.ENDC}")
-    print(f"   Stacks: {', '.join(sorted(stacks))}")
+        terminal_output.print_to_terminal(
+            f"No combined_filter_*.fit in {source}. Run 1_reduce_and_stack.py first.",
+            style_name="FAIL")
+        raise SystemExit(1)
+    terminal_output.print_section("Composite")
+    terminal_output.print_to_terminal(f"Stacks: {', '.join(sorted(stacks))}", indent=2)
     result = compose(stacks, color_settings())
     stem = name or str(fits.getheader(next(iter(stacks.values()))).get("OBJECT", "") or "image")
     target_dir = Path(output_dir).expanduser() if output_dir else source / "color"
     files = write_images(result, target_dir / f"{safe_name(stem)}_{result.palette.name}",
                          formats=formats)
 
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
     mix = "; ".join(f"{ch}=" + "+".join(f"{w:g}x{f}" for f, w in weights.items())
                     for ch, weights in result.palette.mix.items())
-    print(f"   Palette:  {result.palette.name} ({mix}"
-          + (f"; L={result.palette.luminance}" if result.palette.luminance else "") + ")")
-    print(f"   Factors:  {result.log['channel_factors']}"
-          + (f" from {result.log['calibration_stars']} stars"
-             if "calibration_stars" in result.log else ""))
+    terminal_output.print_to_terminal(
+        f"Palette: {result.palette.name} ({mix}"
+        + (f"; L={result.palette.luminance}" if result.palette.luminance else "") + ")",
+        indent=2)
+    terminal_output.print_to_terminal(
+        f"Factors: {result.log['channel_factors']}"
+        + (f" from {result.log['calibration_stars']} stars"
+           if "calibration_stars" in result.log else ""),
+        indent=2)
     if "hint" in result.log:
-        print(f"   Hint:     {result.log['hint']}")
-    for path in files:
-        print(f"   Image:    {path}")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+        terminal_output.print_to_terminal(
+            f"Hint: {result.log['hint']}", indent=2, style_name="WARNING")
+    terminal_output.print_done(
+        start_time, {f"Image {i + 1}": path for i, path in enumerate(files)})

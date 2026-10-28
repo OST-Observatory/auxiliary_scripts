@@ -242,7 +242,7 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.analyze import Observation
 
 from mk_calib_pipeline import (
@@ -258,6 +258,8 @@ from mk_calib_pipeline import (
 
 if __name__ == '__main__':
     start_time = time.time()
+    terminal_output.print_header(
+        f"Calibration 2/3: transformation coefficients ({nameobj})")
 
     observation = Observation(object_names=[nameobj])
 
@@ -317,5 +319,6 @@ if __name__ == '__main__':
         weights=weights,
     )
 
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_done(
+        start_time, {"Output": outdir},
+        "3_second_order_extinction.py (after all fields)")

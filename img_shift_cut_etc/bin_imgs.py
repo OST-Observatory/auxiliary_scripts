@@ -22,7 +22,7 @@ binning: int = 2
 ####                            Libraries                               ####
 ############################################################################
 
-import sys
+import time
 
 from pathlib import Path
 
@@ -30,13 +30,16 @@ import ccdproc as ccdp
 
 from astropy.nddata import block_reduce
 
-from ost_photometry import checks
+from ost_photometry import checks, terminal_output
 
 ############################################################################
 ####                               Main                                 ####
 ############################################################################
 
 if __name__ == '__main__':
+    start_time = time.time()
+    terminal_output.print_header("Bin images")
+
     #   Check input and output directory
     file_path = checks.check_pathlib_path(image_path)
     checks.check_output_directories(output_directory)
@@ -46,7 +49,7 @@ if __name__ == '__main__':
     ifc = ccdp.ImageFileCollection(file_path)
 
     #   Loop over files
-    i = 0
+    bar = terminal_output.progress_bar(len(ifc.files), desc="Bin")
     for ccd, file_name in ifc.ccds(
         ccd_kwargs={'unit': 'adu'},
         return_fname=True,
@@ -72,10 +75,9 @@ if __name__ == '__main__':
         #   Save the result
         ccd.write(out_path / file_name, overwrite=True)
 
-        #   Write status to console
-        i += 1
-        sys.stdout.write("\Bin image %i" % i)
-        sys.stdout.flush()
-    sys.stdout.write("\n")
+        bar.update(1)
+    bar.close()
+
+    terminal_output.print_done(start_time, {"Output": out_path})
 
 

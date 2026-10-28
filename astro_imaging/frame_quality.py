@@ -121,13 +121,21 @@ def build_selection(args: argparse.Namespace):
 
 
 def main(argv: list[str] | None = None) -> int:
+    import time
+
+    from ost_photometry import terminal_output
+
+    start_time = time.time()
     args = parse_args(argv)
+    terminal_output.print_header("Frame quality")
     if args.input_dir in (None, "?"):
-        print("Give the input directory (positional) or set PATH_INPUT in the script.")
+        terminal_output.print_to_terminal(
+            "Give the input directory (positional) or set PATH_INPUT in the script.",
+            style_name="FAIL")
         return 2
     input_dir = Path(args.input_dir).expanduser()
     if not input_dir.is_dir():
-        print(f"Not a directory: {input_dir}")
+        terminal_output.print_to_terminal(f"Not a directory: {input_dir}", style_name="FAIL")
         return 2
 
     from ost_photometry.reduce.frame_selection import (
@@ -145,41 +153,46 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     selection = build_selection(args)
-    print(f"Measuring frame quality in {input_dir} ...", flush=True)
+    terminal_output.print_section("Measure")
+    terminal_output.print_to_terminal(f"Frames in {input_dir}", indent=2)
     table = measure_directory_quality(
         input_dir,
         image_type_list=[args.imagetyp] if args.imagetyp else None,
         n_cores_multiprocessing=args.ncores,
     )
     if len(table) == 0:
-        print("No FITS frames found (check --imagetyp).")
+        terminal_output.print_to_terminal(
+            "No FITS frames found (check --imagetyp).", indent=2, style_name="FAIL")
         return 2
 
+    terminal_output.print_section("Selection")
     if selection.is_active():
-        print(f"Selection: {selection.describe()}")
+        terminal_output.print_to_terminal(f"Selection: {selection.describe()}", indent=2)
     mark_selection(table, selection)
     table["stack_weight"] = stack_weights(table, args.weighting)
     summarize_selection(table)
 
     table_path = Path(args.out) if args.out else input_dir / "frame_quality.ecsv"
     write_quality_table(table, table_path)
-    print(f"Table: {table_path}")
+    files = {"Table": table_path}
 
     if args.write_headers:
         n_written = write_quality_to_headers(table, input_dir)
         n_weights = write_weights_to_headers(table, input_dir)
-        print(f"Headers updated: {n_written} frames ({n_weights} with FRMWGHT)")
+        terminal_output.print_to_terminal(
+            f"Headers updated: {n_written} frames ({n_weights} with FRMWGHT)", indent=2)
 
     if args.plot is not None:
         plot_root = input_dir if args.plot == "__input__" else Path(args.plot).expanduser()
         paths = plot_frame_quality(table, plot_root, selection=selection, blocking=True)
-        for path in paths:
-            print(f"Plot: {path}")
+        for i, path in enumerate(paths):
+            files[f"Plot {i + 1}"] = path
 
     if args.move_rejected:
         moved = move_rejected_frames(table, input_dir, Path(args.move_rejected).expanduser())
-        print(f"Moved {len(moved)} rejected frame(s) to {args.move_rejected}")
+        files["Rejected"] = f"{len(moved)} frame(s) moved to {args.move_rejected}"
 
+    terminal_output.print_done(start_time, files)
     return 0
 
 

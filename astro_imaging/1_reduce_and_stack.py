@@ -225,7 +225,7 @@ from astropy import log
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.reduce import redu, utilities
 
 
@@ -265,6 +265,7 @@ def build_frame_selection() -> dict:
 if __name__ == "__main__":
     #   Set start time
     start_time = time.time()
+    terminal_output.print_header("Astro imaging 1/3: reduce and stack")
 
     ###
     #   Prepare directories and make checks
@@ -325,11 +326,15 @@ if __name__ == "__main__":
 
     out = Path(output_dir)
     stacks = sorted(p.name for p in out.glob("combined_filter_*.fit"))
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print(f"   Stacks:          {', '.join(stacks) if stacks else 'none written'}")
-    print(f"   Frame quality:   {out / 'frame_quality.ecsv'}")
-    print(f"   Rejected frames: {out / 'rejected_lights'}")
+    files = {
+        "Stacks": ", ".join(stacks) if stacks else "none written",
+        "Frame quality": out / "frame_quality.ecsv",
+        "Rejected frames": out / "rejected_lights",
+    }
     if keep_aligned_lights:
-        print(f"   Aligned frames:  {out / 'aligned_lights'}  (input for 2_restack.py)")
-    print(f"   QC plots:        {out / 'diagnostics' / 'frame_quality'}")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+        files["Aligned frames"] = out / "aligned_lights"
+    files["QC plots"] = out / "diagnostics" / "frame_quality"
+    terminal_output.print_done(
+        start_time, files,
+        "2_restack.py (optional, other selection / weighting) or 3_color_composite.py"
+        if keep_aligned_lights else "3_color_composite.py")

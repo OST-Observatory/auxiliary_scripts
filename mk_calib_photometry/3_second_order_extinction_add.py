@@ -37,23 +37,25 @@ weights = False
 ####                            Libraries                               ####
 ############################################################################
 
+import time
 import warnings
 warnings.filterwarnings('ignore')
 
 import matplotlib.pyplot as plt
 plt.switch_backend('Agg')
 
-from ost_photometry import checks
+from ost_photometry import checks, terminal_output
 from ost_photometry.analyze.calibration.second_order_extinction import (
     run_second_order_campaign,
 )
-from ost_photometry.style import Bcolors as bcolors
 
 ############################################################################
 ####                               Main                                 ####
 ############################################################################
 
 if __name__ == '__main__':
+    start_time = time.time()
+    terminal_output.print_header("Calibration 3/3: second order extinction")
     checks.check_output_directories(outdir)
 
     results = run_second_order_campaign(
@@ -63,30 +65,15 @@ if __name__ == '__main__':
         apply_weights=weights,
     )
 
-    indent = '      '
     for fit in results:
-        print(indent + '########################################')
-        print(
-            bcolors.BOLD
-            + indent + 'Transformation coefficients (' + fit.filter + '):'
-            + bcolors.ENDC
-        )
-        print(
-            indent + '   T' + fit.legacy_t_label + ' = ',
-            f"{fit.intercept_t:.5}",
-            '+/-',
-            f"{fit.intercept_t_err:.5}",
-        )
-        print(
-            bcolors.BOLD
-            + indent + 'Second order extinction coefficients ('
-            + fit.filter + '):'
-            + bcolors.ENDC
-        )
-        print(
-            indent + '   k"' + fit.legacy_t_label + ' = ',
-            f"{fit.k_second_order:.5}",
-            '+/-',
-            f"{fit.k_second_order_err:.5}",
-        )
-        print(indent + '########################################')
+        terminal_output.print_section(f"Filter {fit.filter}")
+        terminal_output.print_to_terminal(
+            f"Transformation coefficient  T{fit.legacy_t_label} = "
+            f"{fit.intercept_t:.5} +/- {fit.intercept_t_err:.5}",
+            indent=2, style_name="OKGREEN")
+        terminal_output.print_to_terminal(
+            f"Second order extinction     k\"{fit.legacy_t_label} = "
+            f"{fit.k_second_order:.5} +/- {fit.k_second_order_err:.5}",
+            indent=2, style_name="OKGREEN")
+
+    terminal_output.print_done(start_time, {"Output": outdir})

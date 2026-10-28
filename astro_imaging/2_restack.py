@@ -68,7 +68,7 @@ from astropy import log
 
 log.setLevel("ERROR")
 
-from ost_photometry import style
+from ost_photometry import terminal_output
 from ost_photometry.reduce.frame_selection import (
     FrameSelection,
     group_indices_by_filter,
@@ -121,6 +121,7 @@ def build_frame_selection() -> FrameSelection:
 
 if __name__ == "__main__":
     start_time = time.time()
+    terminal_output.print_header("Astro imaging 2/3: restack with another selection")
 
     out = Path(output_dir)
     aligned_dir = out / "aligned_lights"
@@ -128,16 +129,16 @@ if __name__ == "__main__":
     target = Path(restack_dir)
 
     if not table_path.is_file():
-        raise SystemExit(
-            f"{style.Bcolors.FAIL}No {table_path}. Run 1_reduce_and_stack.py first."
-            f"{style.Bcolors.ENDC}"
-        )
+        terminal_output.print_to_terminal(
+            f"No {table_path}. Run 1_reduce_and_stack.py first.", style_name="FAIL")
+        raise SystemExit(1)
     if not aligned_dir.is_dir():
-        raise SystemExit(
-            f"{style.Bcolors.FAIL}No registered frames in {aligned_dir}. Re-run "
-            "1_reduce_and_stack.py with keep_aligned_lights = True."
-            f"{style.Bcolors.ENDC}"
+        terminal_output.print_to_terminal(
+            f"No registered frames in {aligned_dir}. Re-run "
+            "1_reduce_and_stack.py with keep_aligned_lights = True.",
+            style_name="FAIL",
         )
+        raise SystemExit(1)
 
     ###
     #   Candidates: frames that exist in aligned_lights
@@ -147,11 +148,14 @@ if __name__ == "__main__":
     keep_rows = np.array([str(f) in present for f in table["file"]], dtype=bool)
     table = table[keep_rows]
     if len(table) == 0:
-        raise SystemExit(
-            f"{style.Bcolors.FAIL}None of the frames in {table_path} exists in "
-            f"{aligned_dir}.{style.Bcolors.ENDC}"
+        terminal_output.print_to_terminal(
+            f"None of the frames in {table_path} exists in {aligned_dir}.",
+            style_name="FAIL",
         )
-    print(f"   {len(table)} registered frames found in {aligned_dir}")
+        raise SystemExit(1)
+    terminal_output.print_section("Frame selection")
+    terminal_output.print_to_terminal(
+        f"{len(table)} registered frames found in {aligned_dir}", indent=2)
 
     ###
     #   New selection and weights (previous rejections are reset)
@@ -162,7 +166,8 @@ if __name__ == "__main__":
     table["aligned"] = np.ones(len(table), dtype=bool)
     mark_selection(table, selection)
     table["stack_weight"] = stack_weights(table, stack_weighting)
-    print(f"   Selection: {selection.describe()}; weighting: {stack_weighting}")
+    terminal_output.print_to_terminal(
+        f"Selection: {selection.describe()}; weighting: {stack_weighting}", indent=2)
     summarize_selection(table)
 
     target.mkdir(parents=True, exist_ok=True)
@@ -175,10 +180,13 @@ if __name__ == "__main__":
     weights_all = np.asarray(table["stack_weight"], dtype=float)
     files_all = [str(f) for f in table["file"]]
     written: list[str] = []
+    terminal_output.print_section("Stacking")
     for filter_, idx in group_indices_by_filter(table).items():
         kept = idx[~rejected[idx]]
         if kept.size == 0:
-            print(f"   Filter {filter_}: no frames left after selection, skipped.")
+            terminal_output.print_to_terminal(
+                f"Filter {filter_}: no frames left after selection, skipped.",
+                indent=2, style_name="WARNING")
             continue
         paths = [str(aligned_dir / files_all[i]) for i in kept]
         weights = None if stack_weighting == "none" else weights_all[kept]
@@ -196,12 +204,18 @@ if __name__ == "__main__":
             stack_meta=meta,
         )
         written.append(name)
-        print(f"   Filter {filter_}: stacked {kept.size} of {idx.size} frames -> {name}")
+        terminal_output.print_to_terminal(
+            f"Filter {filter_}: stacked {kept.size} of {idx.size} frames -> {name}",
+            indent=2, style_name="OKGREEN")
 
     plot_frame_quality(table, target, selection=selection, blocking=True)
 
-    print(style.Bcolors.OKGREEN + "   Done" + style.Bcolors.ENDC)
-    print(f"   Stacks:        {', '.join(written) if written else 'none written'}")
-    print(f"   Frame quality: {target / 'frame_quality_restack.ecsv'}")
-    print(f"   QC plots:      {target / 'diagnostics' / 'frame_quality'}")
-    print("--- %s minutes ---" % ((time.time() - start_time) / 60.0))
+    terminal_output.print_done(
+        start_time,
+        {
+            "Stacks": ", ".join(written) if written else "none written",
+            "Frame quality": target / "frame_quality_restack.ecsv",
+            "QC plots": target / "diagnostics" / "frame_quality",
+        },
+        "3_color_composite.py (stacks_dir = the restack directory)",
+    )
