@@ -1,6 +1,7 @@
 #! /usr/bin/python
 
 import os
+import sys
 
 sourceDir 	= input('\nEnter directory path to images to animate:\t')
 

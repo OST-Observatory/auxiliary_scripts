@@ -6,9 +6,8 @@ import argparse
 def save_arrays_as_ascii(savename,array_list):
     array_list = [np.array(i).astype(float) for i in array_list]
     spec_save = np.transpose([array_list[0],array_list[1]])
-    with open(savename,"w") as savefile:
-        np.savetxt(savename,spec_save)
-        print("Saved to",savename)
+    np.savetxt(savename,spec_save)
+    print("Saved to",savename)
 
 description = '''\
 description:

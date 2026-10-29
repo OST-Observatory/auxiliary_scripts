@@ -55,7 +55,7 @@ def get_filenames(dirname,suffix):
 
 def read_to_df(filename):
     df  = pd.read_table(filename,
-                     sep = "\s+",
+                     sep = r"\s+",
                      header=None,
                      skiprows=0,
                      comment='#',

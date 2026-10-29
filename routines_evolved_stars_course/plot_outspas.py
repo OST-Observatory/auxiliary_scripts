@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import numpy as np
+
 def norm_lin(wave,flux,wl1,wl2,wl3,wl4):
     import numpy as np
     rlow    = np.where((wl1 <= wave) & (wave <= wl2))
@@ -228,7 +230,6 @@ def plot_singlecolumn(dataframe,**kwargs):
             if i > 0:
                 print('\n')
                 print('item.wave_cen =',alignwave_ss)
-                yspace_prev = ypos_tight[-1]
                 item_prev = dataframe.iloc[i-1]
                 alignwave_ss_prev = item_prev.wave_cen
                 if 'center' in kwargs:
@@ -243,7 +244,6 @@ def plot_singlecolumn(dataframe,**kwargs):
                 except ValueError:
                     maxarray_prev_int = np.interp(xrange_current,xrange_prev,maxarray_prev)
                 ydiff_to_prev = maxarray_prev_int - minarray
-                ydiff_min = min(ydiff_to_prev)
                 ydiff_max = max(ydiff_to_prev)
                 #print('ydiff_min =',ydiff_min)
                 #print('ydiff_max =',ydiff_max)
@@ -277,10 +277,8 @@ def plot_singlecolumn(dataframe,**kwargs):
         
         if 'save_space' in kwargs:
             txtoffset = 1/20
-            txtoffset_0 = 1
             yoffset = ypos_tight[i]
         else:
-            txtoffset_0 = 1
             txtoffset = 1/4
             yoffset = i + 1
         
@@ -337,21 +335,18 @@ def plot_singlecolumn(dataframe,**kwargs):
 
     ax1_ymin, ax1_ymax = ax1.get_ylim()
     ax1_xmin, ax1_xmax = ax1.get_xlim()
-    ax1_xextend = ax1_xmax - ax1_xmin
     ax1_yextend = ax1_ymax - ax1_ymin
     if 'ruler' in kwargs:
         #print('ax1_xmin, ax1_xmax',ax1_xmin, ax1_xmax)
         #print('ax1_ymin, ax1_ymax',ax1_ymin, ax1_ymax)
         y1, y2 = plt.gca().get_window_extent().get_points()[:, 1]
         x1, x2 = plt.gca().get_window_extent().get_points()[:, 0]
-        yscale = (y2-y1)/(ax1_ymax-ax1_ymin)
         xscale = (x2-x1)/(ax1_xmax-ax1_xmin)
         #print('xscale,yscale',xscale,yscale)
         fontsize = 12
         # x-extension of one char in x-axis units?!
         xfontsize = fontsize / xscale
         #print('xfontsize',xfontsize)
-        mindist = xfontsize * 1.15
 
         settings = {'color': (0,0,0),
                    'lw': 1,
@@ -406,7 +401,6 @@ def plot_singlecolumn(dataframe,**kwargs):
 def plot_multicolumn(dataframe_full,ranges_per_panel,**plot_df_keys):
     ''' create multiple plot_singlecolumn() side by side '''
     import numpy as np
-    import matplotlib.gridspec as gridspec
     import matplotlib.pyplot as plt
     dataframe_full = dataframe_full.iloc[::-1]
     nranges = len(dataframe_full.values)
@@ -431,7 +425,6 @@ def plot_multicolumn(dataframe_full,ranges_per_panel,**plot_df_keys):
     figsize_x = npanels*8.
     figsize_y = ranges_per_panel*1.3
     pname = plt.figure(figsize=(figsize_x,figsize_y))
-    outer = gridspec.GridSpec(1, npanels,  wspace=0, hspace=0)
     if 'sortatm' in plot_df_keys:
         for i in range(0,npanels):
             axes_panel = pname.add_subplot(1,npanels,i+1)
@@ -459,7 +452,7 @@ def plot_multicolumn(dataframe_full,ranges_per_panel,**plot_df_keys):
     # hide tick and tick label of the big axes
     plt.tick_params(labelcolor='white',which='both',axis='both',color='white')
     #plt.grid(False)
-    plt.xlabel("$\lambda -\lambda _0$ ($\AA$)",fontsize=13, labelpad=0)
+    plt.xlabel(r"$\lambda -\lambda _0$ ($\AA$)",fontsize=13, labelpad=0)
     plt.ylabel(r"Normalized Flux",fontsize=13, labelpad=0)
     plt.tight_layout(pad=0,w_pad=0.4,h_pad=0)
     #plt.tight_layout()
@@ -474,16 +467,16 @@ def plot_singlemosaic(dataframe,ncols,**kwargs):
     wave = kwargs.get('wave', [])
     flux = kwargs.get('flux', [])
 
-    replace_dict = {'Ha':r'H$\alpha$/HeII',
-                    'Hb':r'H$\beta$/HeII',
-                    'Hg':r'H$\gamma$/HeII',
-                    'Hd':r'H$\delta$/HeII',
-                    'He':r'H$\epsilon$/HeII',
-                    'Ha + HeI':r'H$\alpha$/HeII + HeI',
-                    'Hb + HeI':r'H$\beta$/HeII + HeI',
-                    'Hg + HeI':r'H$\gamma$/HeII + HeI',
-                    'Hd + HeI':r'H$\delta$/HeII + HeI',
-                    'He + HeI':r'H$\epsilon$/HeII + HeI'}
+    #replace_dict = {'Ha':r'H$\alpha$/HeII',
+    #                'Hb':r'H$\beta$/HeII',
+    #                'Hg':r'H$\gamma$/HeII',
+    #                'Hd':r'H$\delta$/HeII',
+    #                'He':r'H$\epsilon$/HeII',
+    #                'Ha + HeI':r'H$\alpha$/HeII + HeI',
+    #                'Hb + HeI':r'H$\beta$/HeII + HeI',
+    #                'Hg + HeI':r'H$\gamma$/HeII + HeI',
+    #                'Hd + HeI':r'H$\delta$/HeII + HeI',
+    #                'He + HeI':r'H$\epsilon$/HeII + HeI'}
     
     dimx = len(dataframe.values)
     ncols = 3
@@ -582,7 +575,7 @@ def plot_singlemosaic(dataframe,ncols,**kwargs):
                        top=True, bottom=True, left=True, right=True)
 
     if single == True:
-        plt.xlabel("$\lambda -\lambda _0$ ($\AA$)")
+        plt.xlabel(r"$\lambda -\lambda _0$ ($\AA$)")
         plt.ylabel(r"Normalized Flux")
         plt.tight_layout()
     else:
@@ -591,7 +584,7 @@ def plot_singlemosaic(dataframe,ncols,**kwargs):
         plt.tick_params(labelcolor='none',
                     top=False, bottom=False, left=False, right=False)
         plt.grid(False)
-        plt.xlabel("$\lambda -\lambda _0$ ($\AA$)",fontsize=13, labelpad=15)
+        plt.xlabel(r"$\lambda -\lambda _0$ ($\AA$)",fontsize=13, labelpad=15)
         plt.ylabel(r"Normalized Flux",fontsize=13, labelpad=13)
         plt.tight_layout(pad=0,w_pad=1,h_pad=0.2)
 
@@ -734,8 +727,6 @@ def main():
             df = df.sort_values(by=['wave_cen'], ascending=True).reset_index(drop=True)
 
     data_edit = [x.replace('# ','') for x in data[2:8]]
-    data_string_1 = ''.join(data_edit[:3])
-    data_string_2 = ''.join(data_edit[3:])
 
     if args.comp_syn:
         synname = args.comp_syn[0]

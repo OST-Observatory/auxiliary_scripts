@@ -4,7 +4,7 @@ def read_spec(fname,**kwargs):
     import pandas as pd
     " read synspec output spectrum\
       or any spectrum with two columns: wave flux "
-    df0  =   pd.read_table(fname,sep='\s+',header=None,comment='#')
+    df0  =   pd.read_table(fname,sep=r'\s+',header=None,comment='#')
     col_wave_obs, col_flux_obs = 0, 1
     if 'readcols' in kwargs:
         col_wave_obs, col_flux_obs = kwargs['readcols'][0], kwargs['readcols'][1]
@@ -125,7 +125,7 @@ def convolve_FWHM(wavec, fluxc, res):
         maxsig = 10
         r2, fwhm = pyasl.instrBroadGaussFast(xnew, ynew, res,
           edgeHandling="firstlast", fullout=True, maxsig=maxsig)
-        form5   = lambda x: "%.5f" % x
+        #form5   = lambda x: "%.5f" % x
         #print("Gaussian kernel FWHM:", form5(fwhm), 'A')
         step_final = stepc
         if dlam < 50:
@@ -334,8 +334,7 @@ def shift_to_obs(waves,vrad):
 
 def main():
     import numpy as np
-    import argparse,textwrap,time,os
-    time_start = time.time()
+    import argparse,textwrap,os
     parser = argparse.ArgumentParser(
          prog='edit_syn7.py',
          formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -350,9 +349,6 @@ def main():
             examples:
                  edit_syn7.py -spec syn.7 -res 6
          '''))
-    parser.add_argument('-test',
-                        action='store_true', default=False,
-                        help="Testing purpose")
     parser.add_argument('-esterr',
                         action='store_true', default=False,
                         help="(Over)write error column with error estimated from flux and wave arrays")
@@ -428,13 +424,6 @@ def main():
                                unpack=True,
                                dtype=float)
         wave_obs, flux_obs, err_obs = np.array(wave_obs), np.array(flux_obs), np.array(err_obs)
-
-    if args.test:
-        flux_syn = np.interp(wave_obs, wave_syn, flux_syn)
-        wave_syn, flux_syn = np.array(wave_syn), np.array(flux_syn)
-        matched_wave,matched_data,matched_error,matched_model = \
-        match_data_models( wave_obs, flux_obs, np.ones(len(wave_obs)), err_obs, wave_obs, flux_syn, max(min(wave_syn),min(wave_obs)),min(max(wave_syn),max(wave_obs)),
-                         saveDowngradedModel = True, downgradedModelFile = "DGmodel.txt")
 
     if args.wave_const:
         wave_syn  = np.multiply(wave_syn,float(args.wave_const[0]))

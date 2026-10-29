@@ -20,7 +20,7 @@ class bcolors:
 def plot_spectra_reduced(spec_science,spec_flat,
                          wave_grid,plotident,savename_sci_pdf):
 
-    fig1 = plt.figure(figsize=(20,10))
+    plt.figure(figsize=(20,10))
     axes = plt.gca()
 
     font = {'family': 'serif',
@@ -128,7 +128,7 @@ def plot_spectra_reduced(spec_science,spec_flat,
     plt.clf()
 
     # plot the flatfield
-    fig2 = plt.figure(figsize=(20,10))
+    plt.figure(figsize=(20,10))
 
     plt.xlabel(r'$\lambda\,[\AA]$')
     plt.ylabel('Relative flux')
@@ -149,10 +149,9 @@ def plot_spectra_reduced(spec_science,spec_flat,
 def save_arrays_as_ascii(savename,array_list):
     array_list = [np.array(i).astype(float) for i in array_list]
     spec_save = np.transpose([array_list[0],array_list[1]])
-    with open(savename,"w") as savefile:
-        np.savetxt(savename,spec_save)
-        print(bcolors.BOLD+"   Saved to "+\
-            bcolors.OKBLUE+savename+bcolors.ENDC)
+    np.savetxt(savename,spec_save)
+    print(bcolors.BOLD+"   Saved to "+\
+        bcolors.OKBLUE+savename+bcolors.ENDC)
 
 def errormessage(text):
     print(bcolors.FAIL+"   [ERROR] "+text+bcolors.ENDC)
@@ -273,7 +272,6 @@ def main():
     plotident = args.plot_ident[0]
 
     # file containing line identifications
-    lineFile   = args.line_file[0]
 
     ####################################################################
     #### The following parameters usually do not need to be adjusted ###
@@ -287,7 +285,6 @@ def main():
     # data output names
 
     savename_sci_pdf = 'star_spectrum.pdf'
-    savename_sci_ascii = 'star_spectrum.dat'
 
     masterdark_output_name = 'master_dark.fit'
     masterflat_output_name = 'master_flat.fit'

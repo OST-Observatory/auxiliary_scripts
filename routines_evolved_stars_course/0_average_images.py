@@ -29,7 +29,6 @@ def average_images(flatdark_dir,masterflat_output_name):
 def average_images_2(flatdark_dir,masterflat_output_name):
     from netCDF4 import Dataset
     import numpy as np
-    from PIL import Image
     from astropy.io import fits
     import glob
     import os
@@ -63,7 +62,6 @@ def average_images_2(flatdark_dir,masterflat_output_name):
     median = np.median(img, axis=0)
     os.system('rm test.nc')
 
-    im = Image.fromarray(np.uint16(median))
     hdu = fits.PrimaryHDU(median,flatHeader)
     hdu.scale('int16', '', bzero=0)
     hduList = fits.HDUList([hdu])

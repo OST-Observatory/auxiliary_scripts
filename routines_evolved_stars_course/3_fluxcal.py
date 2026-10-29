@@ -131,7 +131,6 @@ def ontype(event,wave,flux,ymin,ymax,yran,filename,args,kwargs={}):
             if args.comparison:
                 if args.fluxcal:
                     clicked_wave = np.array(clicked_points).T[0]
-                    clicked_flux = np.array(clicked_points).T[1]
                     idx_closest = [min(range(len(wave_comp)), key=lambda i: abs(wave_comp[i]-itm)) for itm in clicked_wave]
                     flux_comp_closet = [flux_comp[i] for i in idx_closest]
                     degree = int(args.degree)
@@ -200,7 +199,7 @@ def ontype(event,wave,flux,ymin,ymax,yran,filename,args,kwargs={}):
                 else:
                     errorset = False
                 if (errorset == True) & (continuum_save is not None):
-                    error_normalized = error/continuum_save
+                    error_normalized = kwargs['error']/continuum_save
                     data = np.append(data,[error_normalized], axis=0)
                 if args.fluxcal:
                     savename = os.path.splitext(filename)[0]+'.instr'
@@ -385,10 +384,8 @@ examples:
                         (np.isfinite(flux) == True) &
                         (np.isfinite(error) == True))
         error = error[mask]
+        kwargs_ontype.update({'error': error})
     wave,flux = wave[mask],flux[mask]
-    xmin = min(wave[mask])
-    xmax = max(wave[mask])
-    xran = xmax - xmin
     ymin = min(flux[mask])
     ymax = max(flux[mask])
     if args.flat:

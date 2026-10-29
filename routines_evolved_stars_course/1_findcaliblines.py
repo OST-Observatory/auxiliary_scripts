@@ -166,7 +166,7 @@ def plot_disp(lines_identified_pixel,lines_identified_wave,m1,m2,m3,b,spec_pixel
     plt.ylabel(r'$\lambda\,[\AA]$')
     plt.xlabel('Pixel')
 
-    fig2.suptitle('$\lambda$ = '+str('%.2E' % Decimal(m1))+r" $\times$ pxl$^3$ + "+\
+    fig2.suptitle(r'$\lambda$ = '+str('%.2E' % Decimal(m1))+r" $\times$ pxl$^3$ + "+\
         str('%.2E' % Decimal(m2))+r" $\times$ pxl$^2$ + "+str('%.2E' % Decimal(m3))+\
             r" $\times$ pxl + " + str('{:7.2f}'.format(b)),fontsize=13)
     #fig2.canvas.mpl_connect('key_press_event',press_key)
@@ -216,7 +216,6 @@ def est_cont_rough(spec_tmp):
     from scipy.ndimage import gaussian_filter1d
 
     wsize = 50
-    cutmedian = 0.9
     spec_smooth_median = [np.median(spec_tmp[i-wsize:i+wsize]) for i in range(0,len(spec_tmp))]
 
     spec_smooth_median = np.array(spec_smooth_median)
@@ -231,7 +230,6 @@ def est_cont_rough(spec_tmp):
 def find_emission_lines(spec_int,emission_lines_to_find,emissionlinewidth):
     '''try to find emission line maxima'''
     spec_int = list(spec_int)
-    spec_x = range(0,len(spec_int))
     lines_found = []
     gauss_inputs = []
     for i in range(0,emission_lines_to_find + 30):
@@ -256,7 +254,6 @@ def find_emission_lines(spec_int,emission_lines_to_find,emissionlinewidth):
 
 def find_emission_lines_v2(spec_tmp,emission_lines_to_find,emissionlinewidth):
     '''try to find emission line maxima'''
-    lines_found = []
     winsize = 20
     print("winsize",winsize)
     #lines_strong = [[i,spec_tmp[i]] for i in range(0,len(spec_tmp)) if spec_tmp[i] > np.median(spec_tmp[i-winsize:i+winsize]) ]
