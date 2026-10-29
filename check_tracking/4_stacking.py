@@ -1,6 +1,6 @@
 #! /usr/bin/python
 
-import os, sys, numpy as np
+import os, sys
 from astropy.io import fits
 
 # this script will stack all presented fits files on top of each other

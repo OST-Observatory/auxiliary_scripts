@@ -111,20 +111,10 @@ id_img    = 10
 ############################################################################
 
 import sys
-import os
 
-from pathlib import Path
 
-import numpy as np
-import matplotlib.pyplot as plt
 
-from skimage import data
-from skimage.registration import phase_cross_correlation
-from skimage.draw import polygon2mask
-from skimage.io import imread, imread_collection, imsave, imshow
 
-import checks
-import aux
 
 import registration
 

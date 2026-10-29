@@ -28,18 +28,15 @@ object_file = 'cluster.dat'
 ####                            Libraries                               ####
 ############################################################################
 
-import sys
 
 import numpy as np
 
-import matplotlib.pyplot as plt
 
 from astropy import units as u
 from astropy.table import Table
 from astropy.table import vstack
 from astropy.time import Time
 import astropy.coordinates as coord
-from astropy.coordinates import get_sun
 from astropy.coordinates import get_moon
 
 from astroplan import Observer

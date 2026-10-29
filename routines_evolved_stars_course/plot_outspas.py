@@ -139,7 +139,6 @@ def read_ranges(data,par):
 def meta_data(Teff,logg,logy,vrad,vrot,zeta,data_edit):
     import matplotlib.pyplot as plt
     ''' create and plot a LaTex table with metadata '''
-    import matplotlib as mpl
     #mpl.rc('text', usetex=True)
     form1   = lambda x: "%.1f" % x
     fig = plt.figure()
@@ -470,7 +469,6 @@ def plot_multicolumn(dataframe_full,ranges_per_panel,**plot_df_keys):
 
 def plot_singlemosaic(dataframe,ncols,**kwargs):
     import matplotlib.pyplot as plt
-    import pandas as pd
     import math
     single = kwargs.get('single', False)
     wave = kwargs.get('wave', [])
@@ -684,8 +682,7 @@ def main():
     waves,flux_obss,flux_models = read_ranges(data,par)
 
     if args.smooth_box[0] >= 2:
-        from scripts_instrument import (est_SNR,
-                               convolve_box)
+        from scripts_instrument import (convolve_box)
         npix = int(args.smooth_box[0])
         print("applying boxcar smoothing with",npix,"pixels")
         flux_obss = [convolve_box(item,npix)[2:-2] for item in flux_obss]

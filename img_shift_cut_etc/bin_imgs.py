@@ -28,8 +28,6 @@ from pathlib import Path
 
 import ccdproc as ccdp
 
-from astropy.nddata import block_reduce
-
 from ost_photometry import checks, terminal_output
 
 ############################################################################
@@ -56,6 +54,7 @@ if __name__ == '__main__':
         ):
 
         #   Bin image
+        #from astropy.nddata import block_reduce
         #ccd = ccdp.transform_image(
             #ccd,
             #block_reduce,

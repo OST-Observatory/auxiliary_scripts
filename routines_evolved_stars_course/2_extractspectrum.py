@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, time, sys, matplotlib
+import os, sys, matplotlib
 from astropy.io import fits
 import numpy as np
 from scipy.interpolate import interp1d

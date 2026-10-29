@@ -87,18 +87,16 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from skimage import data
 from skimage.registration import phase_cross_correlation
 from skimage.draw import polygon2mask
-from skimage.io import (imread, imread_collection, imsave, imshow)
+from skimage.io import imread_collection, imsave
 
 from ost_photometry import checks, terminal_output
 import ost_photometry.utilities as utilities_base
-from ost_photometry.reduce import utilities
+from ost_photometry.reduce.registration import calculate_index_from_shifts
 
 #from PIL import Image
 #from rawkit.raw import Raw
-import rawpy
 
 ############################################################################
 ####                               Main                                 ####
@@ -122,6 +120,9 @@ fileList, nfiles = utilities_base.mk_file_list(
 
 #   Read images
 if ".CR2" in formats:
+    #   Only needed for camera raw files
+    import rawpy
+
     im = []
     bar = terminal_output.progress_bar(nfiles, desc="Read")
     for i, filename in enumerate(fileList):
@@ -240,7 +241,7 @@ for i in range(0,nfiles):
     #   Write status to console
     bar.update(1)
 
-    xs, xe, ys, ye =  utilities.make_index_from_shifts(
+    xs, xe, ys, ye = calculate_index_from_shifts(
         shifts,
         i,
     )

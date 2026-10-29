@@ -23,15 +23,13 @@ out_format = '.tiff'
 ####                            Libraries                               ####
 ############################################################################
 
-import os
 import sys
 
-from pathlib import Path, PurePath
+from pathlib import Path
 
 import planetary_system_stacker as pss
 sys.path.append(pss.__path__[0])
 from configuration import Configuration
-from frames import Frames
 import ser_parser
 
 import cv2

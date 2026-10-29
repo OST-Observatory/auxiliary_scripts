@@ -28,7 +28,7 @@ import time
 
 import numpy as np
 
-from tifffile import (imread, imsave)
+from tifffile import imread, imwrite
 
 from ost_photometry import checks, terminal_output, utilities
 
@@ -64,11 +64,11 @@ for i in range(0, n_files):
     new_name = os.path.basename(fileList[i])
 
     #   Write images
-    imsave(os.path.join('flip_imgs_test',new_name), im[i])
+    imwrite(os.path.join(output_directory, new_name), im[i])
 
     bar.update(1)
 bar.close()
 
-terminal_output.print_done(start_time, {"Output": 'flip_imgs_test'})
+terminal_output.print_done(start_time, {"Output": output_directory})
 
 

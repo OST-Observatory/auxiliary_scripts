@@ -42,7 +42,6 @@ import time
 import numpy as np
 from pathlib import Path
 import ccdproc as ccdp
-from astropy.io import fits
 from ost_photometry import checks, terminal_output
 
 ############################################################################

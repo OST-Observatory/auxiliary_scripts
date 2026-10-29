@@ -55,7 +55,6 @@ from astroplan import FixedTarget
 from astroplan.plots import plot_airmass 
 from astroplan.plots import plot_sky
 
-from astroplan.plots import available_style_sheets
 
 ############################################################################
 ####                        Routines & definitions                      ####

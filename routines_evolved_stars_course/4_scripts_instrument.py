@@ -108,7 +108,6 @@ def convolve_FWHM(wavec, fluxc, res):
     ''' Apply instr. convolution with constant FWHM \
         FWHM = ((wave[-1]+wave[0])/2) / res'''
     import numpy as np
-    from scipy import interpolate
     from PyAstronomy import pyasl
     # interpolate to equidistant steps using spline
     midwave_syn = (wavec[0] + wavec[-1])/2
@@ -262,7 +261,6 @@ def rotBroad(wvl, flux, epsilon, vsini, edgeHandling="firstlast"):
 
 def apply_rotbroad_slow(wavec, fluxc, vsini, epsilon, wave_obs):
     '''accounts for doppler shift wave dependency, but is super slow'''
-    from PyAstronomy import pyasl
     from scipy import interpolate
     import numpy as np
     print('applying wavelength-dependent rotational broadening')
@@ -335,7 +333,6 @@ def shift_to_obs(waves,vrad):
 
 
 def main():
-    import pandas as pd
     import numpy as np
     import argparse,textwrap,time,os
     time_start = time.time()

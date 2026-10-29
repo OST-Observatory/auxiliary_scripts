@@ -246,7 +246,6 @@ warnings.filterwarnings('ignore')
 from astropy import log
 log.setLevel('ERROR')
 
-from skimage import data
 from skimage.io import imsave, imread_collection
 
 #from skimage import exposure
