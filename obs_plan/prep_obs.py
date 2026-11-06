@@ -28,7 +28,8 @@ ra_obj  = ''
 dec_obj = ''
 
 #   Object name -> If only the object name is given, the object will be
-#                  resolvable by means of Simbad
+#                  resolved by means of Sesame, Simbad or NED (mirrors when
+#                  CDS does not answer)
 name_obj = '?'
 
 
@@ -40,20 +41,22 @@ import sys
 
 import numpy as np
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 from astropy import units as u
 from astropy.time import Time
 import astropy.coordinates as coord
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, name_resolve
 from astropy.coordinates import get_sun
-from astropy.coordinates import get_moon
+from astropy.coordinates import get_body
 from astropy.visualization import time_support
 
 from astroplan import Observer
 from astroplan import FixedTarget
-from astroplan.plots import plot_airmass 
 from astroplan.plots import plot_sky
+
+from ost_photometry.core.services import resolve_name
 
 
 ############################################################################
@@ -88,11 +91,11 @@ if ra_obj != '' and dec_obj != '':
         
 elif name_obj != '':
     try:
-        obj_coord = SkyCoord.from_name(name_obj)
-    except:
+        obj_coord = resolve_name(name_obj)
+    except name_resolve.NameResolveError as err:
         print(
             bcolors.WARNING
-            +"   [Error] Object name not recognized"
+            +f"   [Error] Object name not recognized: {err}"
             +bcolors.ENDC
             )
         sys.exit()
@@ -158,17 +161,49 @@ if not ost.target_is_up(time, fixed_target):
 ###
 #   Airmass plots
 #
+#   astroplan's plot_airmass uses Axes.plot_date, which Matplotlib removed
+#   (3.10): the airmass over the night is computed and plotted here
+night = sunset_tonight - 1*u.hour + np.linspace(
+    0, (sunrise_tonight - sunset_tonight).to_value(u.hour) + 2, 300
+    )*u.hour
+night_frame = coord.AltAz(obstime=night, location=location)
+altitude = obj_coord.transform_to(night_frame).alt
+sun_altitude = get_sun(night).transform_to(night_frame).alt
+airmass = np.where(altitude > 0*u.deg, 1/np.sin(altitude), np.nan)
+local_times = night.to_datetime(timezone=ost.timezone)
+
 #   Make figure
 fig = plt.figure(figsize=(11,7))
+ax = fig.add_subplot()
+ax.plot(local_times, airmass, label=name_obj)
 
-plot_airmass(
-    fixed_target, 
-    ost, 
-    time, 
-    brightness_shading=True, 
-    altitude_yaxis=True,
-    use_local_tz=True,
-    ) 
+#   Twilight (light) and night (dark)
+ax.fill_between(
+    local_times, 0, 1,
+    where=(sun_altitude < 0*u.deg) & (sun_altitude >= -18*u.deg),
+    transform=ax.get_xaxis_transform(), color='grey', alpha=0.2,
+    )
+ax.fill_between(
+    local_times, 0, 1,
+    where=sun_altitude < -18*u.deg,
+    transform=ax.get_xaxis_transform(), color='grey', alpha=0.5,
+    )
+
+ax.set_ylim(3, 1)
+ax.set_ylabel('Airmass')
+ax.set_xlabel(f'Time ({ost.timezone})')
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=ost.timezone))
+
+#   Altitude axis
+altitude_axis = ax.secondary_yaxis(
+    'right',
+    functions=(
+        lambda x: np.degrees(np.arcsin(1/np.clip(x, 1, None))),
+        lambda alt: 1/np.sin(np.radians(np.clip(alt, 1, 90))),
+        ),
+    )
+altitude_axis.set_yticks([20, 30, 40, 50, 60, 90])
+altitude_axis.set_ylabel('Altitude [deg]')
 
 #   Position of the legend
 plt.legend(loc=1, bbox_to_anchor=(1, 1), shadow=True) 
@@ -248,7 +283,7 @@ altazframe = coord.AltAz(obstime=times, location=location)
 
 #   Calculate position of the Sun and Moon
 sunaltazs  = get_sun(times).transform_to(altazframe)
-moonaltazs = get_moon(times).transform_to(altazframe)
+moonaltazs = get_body("moon", times, location).transform_to(altazframe)
 
 #   Calculate position of the object
 objaltazs  = obj_coord.transform_to(altazframe)  
@@ -269,7 +304,7 @@ plt.gcf().autofmt_xdate()
 plt.scatter(
     times, 
     objaltazs.alt, 
-    c=objaltazs.az, 
+    c=objaltazs.az.deg, 
     label=name_obj, 
     lw=0, 
     s=8,
