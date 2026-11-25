@@ -82,6 +82,14 @@ dark_exptime_tolerance: float = 0.5
 dark_exptime_tolerance_fraction: float = 0.05
 calibration_window_days: float = 30.0
 
+#   Frames without a sensor temperature (no CCD-TEMP / SET-TEMP in the
+#   header, e.g. SBIG STF-8300): "match_any" takes bias / darks of the same
+#   camera setup at any temperature when none of the same temperature fit
+#   (a warning in the plan names both temperatures); "exclude_lights" does
+#   not reduce such lights.
+unknown_temperature_policy: str = "match_any"
+# unknown_temperature_policy: str = "exclude_lights"
+
 #   Frames per series in missing_calibrations.ecsv (exposures still to take).
 n_darks_to_take: int = 20
 n_bias_to_take: int = 50
@@ -141,6 +149,7 @@ if __name__ == "__main__":
         dark_exptime_tolerance_fraction=dark_exptime_tolerance_fraction,
         calibration_window_days=calibration_window_days,
         no_flat_policy=no_flat_policy,
+        unknown_temperature_policy=unknown_temperature_policy,
         require_complete=require_complete,
         accepted_flat_categories=list(accepted_flat_categories),
         n_cores_multiprocessing=n_cores_multiprocessing,

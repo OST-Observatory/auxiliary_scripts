@@ -71,6 +71,13 @@ factors: dust pattern matches (×3) or differs (×0.2), vignetting differs
 least "likely". Without an applicable flat, `no_flat_policy` decides
 (`best_available`, `skip_flat`, `exclude_lights`).
 
+Frames without a sensor temperature (no `CCD-TEMP` / `SET-TEMP`, e.g. SBIG
+STF-8300): with `unknown_temperature_policy = "match_any"` (default) bias and
+darks of the same camera setup at any temperature are used when none of the
+same temperature fit, with a warning in the unit notes that names both
+temperatures; `1_fetch.py` searches the archive accordingly (also with a
+warning). `"exclude_lights"` leaves such lights out of the reduction.
+
 ## Only complete calibration is reduced
 
 With `require_complete = True` (default) a unit's lights are reduced only if
